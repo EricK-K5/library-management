@@ -10,6 +10,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -47,14 +49,27 @@ public class SecurityConfig {
                                 .jwt(
                                         jwtConfigurer ->
                                                 jwtConfigurer
-                                                        .decoder(customJwtDecoder)));
-//                                                        .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                                                        .decoder(customJwtDecoder)
+                                                        .jwtAuthenticationConverter(jwtAuthenticationConverter())));
                                 //                        NEU LOI SE DIEU HUONG DI QUA ...
 //                                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
         //        TAT CSRF CUA SPRING SECURITY
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
         return httpSecurity.build();
+    }
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        //        Chỉ chuyên lấy quyền (Authorities) từ JWT
+        //        SRPING SECURITY QUI DINH JWTGRANTED DOC DUOC TAT CA NHUNG GI TRONG .claim(scope) ||(
+        // NEU KHONG PHAI scope THI KHONG DOC DUOC)
+        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter =
+                new JwtGrantedAuthoritiesConverter();
+        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
+        //        Chuyển toàn bộ JWT thành Authentication
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+        return jwtAuthenticationConverter;
     }
 
 //    PASSWORD ENCODER
