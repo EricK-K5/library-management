@@ -52,7 +52,7 @@ public class Book {
     Integer totalCopies = 1;
 
     @Column(name = "available_copies", nullable = false)
-    @Builder.Default
+//    @Builder.Default
     Integer availableCopies = 1;
 
     @Column(name = "shelf_location", length = 50)

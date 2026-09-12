@@ -1,5 +1,6 @@
 package com.example.library_management.controller;
 
+import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.RoleResponse;
 import com.example.library_management.dto.response.RoleSummaryResponse;
 import com.example.library_management.service.RoleService;
@@ -22,14 +23,18 @@ public class RoleController {
     // Danh sach role de hien thi cho user bam vao
     @GetMapping
     @PreAuthorize("hasAuthority('user:read')")
-    public List<RoleSummaryResponse> getAllRoles() {
-        return roleService.getAllRoles();
+    public ApiResponse<List<RoleSummaryResponse>> getAllRoles() {
+        return ApiResponse.<List<RoleSummaryResponse>>builder()
+                .result(roleService.getAllRoles())
+                .build();
     }
 
     // Chi tiet 1 role kem permission - goi khi bam vao role
     @GetMapping("/{roleId}")
     @PreAuthorize("hasAuthority('user:read')")
-    public RoleResponse getRoleDetail(@PathVariable Long roleId) {
-        return roleService.getRoleDetail(roleId);
+    public ApiResponse<RoleResponse> getRoleDetail(@PathVariable Long roleId) {
+        return ApiResponse.<RoleResponse>builder()
+                .result(roleService.getRoleDetail(roleId))
+                .build();
     }
 }

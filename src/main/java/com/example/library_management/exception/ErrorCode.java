@@ -19,7 +19,19 @@ public enum ErrorCode {
     ROLE_NOT_EXISTED("Role not existed", 1009, HttpStatus.BAD_REQUEST),
     USER_NOT_MEMBER("User is not member", 1010, HttpStatus.BAD_REQUEST),
     PERMISSION_EXISTED("Permission existed", 1011, HttpStatus.BAD_REQUEST),
-    PERMISSION_NOT_FOUND("Permission not found", 1012, HttpStatus.NOT_FOUND);
+    PERMISSION_NOT_FOUND("Permission not found", 1012, HttpStatus.NOT_FOUND),
+    CATEGORY_EXISTED("Category existed", 2001, HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_EXISTED("Category not existed", 2002, HttpStatus.NOT_FOUND),
+    CATEGORY_IN_USE("Category is in use", 2003, HttpStatus.BAD_REQUEST),
+    BOOK_ISBN_EXISTED("Book ISBN existed", 3001, HttpStatus.BAD_REQUEST),
+    BOOK_NOT_EXISTED("Book not existed", 3002, HttpStatus.NOT_FOUND),
+    BOOK_HAS_BORROW_RECORDS("Book has borrow records", 3003, HttpStatus.BAD_REQUEST),
+    BOOK_NOT_AVAILABLE("Book is not available", 3004, HttpStatus.BAD_REQUEST),
+    TOTAL_COPIES_LESS_THAN_BORROWED("Total copies cannot be less than borrowed copies", 3005, HttpStatus.BAD_REQUEST),
+    BORROW_RECORD_NOT_EXISTED("Borrow record not existed", 4001, HttpStatus.NOT_FOUND),
+    BORROW_LIMIT_EXCEEDED("Borrow limit exceeded", 4002, HttpStatus.BAD_REQUEST),
+    BORROW_ALREADY_RETURNED("Borrow record already returned", 4003, HttpStatus.BAD_REQUEST),
+    USER_HAS_UNPAID_FINE("User has unpaid fine", 4001, HttpStatus.BAD_REQUEST);
 
     ErrorCode(String message, int code, HttpStatus httpStatus) {
         this.message = message;

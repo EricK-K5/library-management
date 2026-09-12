@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +31,7 @@ public class UserService {
     RoleRepository roleRepository;
 
 //    CREATE USER
+    @Transactional
     public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new AppException(ErrorCode.USERS_EXISTED);
@@ -55,6 +57,7 @@ public class UserService {
     }
 
 //    UPDATE USER
+    @Transactional
     public UserResponse updateUser(String id, UserUpdateRequest request) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
         userMapper.updateUser(user, request);
@@ -64,6 +67,7 @@ public class UserService {
     }
 
 //    DELETE USER
+    @Transactional
     public void deleteUser(String id) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
         userRepository.delete(user);

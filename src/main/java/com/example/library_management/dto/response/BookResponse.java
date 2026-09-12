@@ -1,0 +1,33 @@
+package com.example.library_management.dto.response;
+
+import com.example.library_management.enums.BookStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookResponse {
+    Long id;
+    String title;
+    String isbn;
+    String author;
+    String publisher;
+    Integer publishYear;
+    String language;
+    String description;
+    String coverImageUrl;
+    Integer totalCopies;
+    Integer availableCopies;
+    String shelfLocation;
+    BookStatus status;
+    CategoryResponse category;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+}

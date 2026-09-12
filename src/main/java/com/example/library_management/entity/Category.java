@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Data
 @Builder
@@ -24,4 +27,8 @@ public class Category {
 
     @Column(length = 255)
     String description;
+
+    @OneToMany(mappedBy = "category")
+    @Builder.Default
+    Set<Book> books = new HashSet<>();
 }

@@ -12,14 +12,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByUserId(String userId);
 
-    List<Reservation> findByBookId(String bookId);
+    List<Reservation> findByBookId(Long bookId);
 
     List<Reservation> findByStatus(ReservationStatus status);
 
     // Hàng đợi đặt trước của 1 quyển sách, sắp theo thứ tự queuePosition
-    List<Reservation> findByBookIdAndStatusOrderByQueuePositionAsc(String bookId, ReservationStatus status);
+    List<Reservation> findByBookIdAndStatusOrderByQueuePositionAsc(Long bookId, ReservationStatus status);
 
-    Optional<Reservation> findByUserIdAndBookIdAndStatus(String userId, String bookId, ReservationStatus status);
+    Optional<Reservation> findByUserIdAndBookIdAndStatus(String userId, Long bookId, ReservationStatus status);
 
     List<Reservation> findByStatusAndExpiryDateBefore(ReservationStatus status, LocalDate date);
 }

@@ -50,9 +50,9 @@ public class SecurityConfig {
                                         jwtConfigurer ->
                                                 jwtConfigurer
                                                         .decoder(customJwtDecoder)
-                                                        .jwtAuthenticationConverter(jwtAuthenticationConverter())));
-                                //                        NEU LOI SE DIEU HUONG DI QUA ...
-//                                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+                                                        .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                                //                        NEU CHUA DANG NHAP/ JWT KHONG HOP LE SE DUOC DUA QUA ENTRYPOINT
+                                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
         //        TAT CSRF CUA SPRING SECURITY
         httpSecurity.csrf(AbstractHttpConfigurer::disable);

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
@@ -23,6 +24,7 @@ public class AdminService {
     RoleRepository roleRepository;
 
     //    THEM ROLE LIBRARIAN
+    @Transactional
     public UserResponse addLibrarian(String username) {
 
         User user = userRepository.findByUsername(username)
@@ -44,6 +46,7 @@ public class AdminService {
     }
 
     //      XOA ROLE LIBRARIAN
+    @Transactional
     public UserResponse removeLibrarian(String username) {
 
         User user = userRepository.findByUsername(username)
