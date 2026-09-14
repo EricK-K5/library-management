@@ -20,6 +20,6 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     // Đang mượn nhưng quá hạn (chưa đổi status sang OVERDUE)
     List<BorrowRecord> findByStatusAndDueDateBefore(BorrowStatus status, LocalDate date);
 
-    // Đếm số sách đang mượn (chưa trả) của 1 user, để check maxBorrowLimit
+    // dem so sach dang muon => check total>5?
     long countByUserIdAndStatus(String userId, BorrowStatus status);
 }

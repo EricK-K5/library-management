@@ -28,7 +28,6 @@ import java.util.StringJoiner;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationService {
     UserRepository userRepository;
-
     @NonFinal
     @Value("${jwt.signerKey}")
     String SIGNER_KEY;

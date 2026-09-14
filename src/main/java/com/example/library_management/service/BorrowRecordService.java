@@ -35,7 +35,7 @@ import java.util.List;
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class BorrowRecordService {
 
-    // Quy dinh nghiep vu (theo yeu cau): 7 ngay muon mac dinh, toi da 5 sach/user, 5.000 VND/ngay tre
+    // 7 ngay muon mac dinh, toi da 5 sach/user, 5.000 VND/ngay tre
     private static final int BORROW_DAYS = 7;
     private static final int MAX_BORROW_LIMIT = 5;
     private static final BigDecimal FINE_PER_DAY = new BigDecimal("5000");
@@ -46,23 +46,23 @@ public class BorrowRecordService {
     FineRepository fineRepository;
     BorrowRecordMapper borrowRecordMapper;
 
-    // MUON SACH - MEMBER tu muon cho chinh minh, userId lay tu token
+    // MUON SACH - userId lay tu token
     @Transactional
     public BorrowRecordResponse borrowBook(BorrowRecordRequest request) {
         User user = getCurrentUser();
 
-        // Chan muon neu con phi phat chua thanh toan
+        // chan muon neu con phi phat chua thanh toan
         if (fineRepository.existsByUserIdAndStatus(user.getId(), FineStatus.UNPAID)) {
             throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
         }
 
-        // Chan muon neu da dat gioi han so sach dang muon (co dinh 5, moi user nhu nhau)
+        // chan muon neu da dat gioi han so sach dang muon
         long currentBorrowing = borrowRecordRepository.countByUserIdAndStatus(user.getId(), BorrowStatus.BORROWED);
         if (currentBorrowing >= MAX_BORROW_LIMIT) {
             throw new AppException(ErrorCode.BORROW_LIMIT_EXCEEDED);
         }
 
-        // Pessimistic Lock: khoa row sach lai de tranh 2 user cung muon vuot qua so luong con lai
+        // pessimistic lock
         Book book = bookRepository.findByIdForUpdate(request.getBookId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
@@ -80,7 +80,6 @@ public class BorrowRecordService {
                 .book(book)
                 .borrowDate(today)
                 .dueDate(today.plusDays(BORROW_DAYS))
-                .status(BorrowStatus.BORROWED)
                 .build();
 
         return borrowRecordMapper.toBorrowRecordResponse(borrowRecordRepository.save(borrowRecord));
@@ -106,14 +105,14 @@ public class BorrowRecordService {
             borrowRecord.setNote(request.getNote());
         }
 
-        // Tra lai 1 ban sach vao kho (co lock de tranh xung dot voi luot muon khac)
+        // tra lai 1 ban sach vao kho (co lock de tranh xung dot voi luot muon khac)
         Book book = bookRepository.findByIdForUpdate(borrowRecord.getBook().getId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
         book.setAvailableCopies(book.getAvailableCopies() + 1);
         book.setStatus(BookStatus.AVAILABLE);
         bookRepository.save(book);
 
-        // Tra tre han -> tu dong tao Fine 5.000 VND/ngay tre
+        // tra tre han -> tu dong tao Fine 5.000 VND/ngay tre
         if (today.isAfter(borrowRecord.getDueDate())) {
             long lateDays = ChronoUnit.DAYS.between(borrowRecord.getDueDate(), today);
             BigDecimal amount = FINE_PER_DAY.multiply(BigDecimal.valueOf(lateDays));
@@ -162,7 +161,7 @@ public class BorrowRecordService {
                 .toList();
     }
 
-    // DANH SACH MUON CUA CHINH MINH (MEMBER - borrow:read)
+    // DANH SACH MUON CUA CHINH MINH
     @Transactional(readOnly = true)
     public List<BorrowRecordResponse> getMyBorrowRecords() {
         User user = getCurrentUser();

@@ -21,8 +21,9 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     Optional<Book> findByIsbn(String isbn);
 
-    // Pessimistic Write Lock: dung khi muon sach de tranh 2 user cung muon vuot qua so luong con lai
+    // Pessimistic Write Lock: dung khi muon sach de tranh 2 user cung muon vuot qua so luong con lai(race condition)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+//    JAVA PERSISTENCE QUERY LANGUAGE (JPQL) - truy van theo entity, khong phai table
     @Query("SELECT b FROM Book b WHERE b.id = :id")
     Optional<Book> findByIdForUpdate(@Param("id") Long id);
 
