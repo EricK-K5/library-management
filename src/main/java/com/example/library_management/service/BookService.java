@@ -5,29 +5,47 @@ import com.example.library_management.dto.request.BookRequest;
 import com.example.library_management.dto.response.BookResponse;
 import com.example.library_management.entity.Book;
 import com.example.library_management.entity.Category;
+import com.example.library_management.entity.Reservation;
+import com.example.library_management.entity.User;
 import com.example.library_management.enums.BookStatus;
 import com.example.library_management.exception.AppException;
 import com.example.library_management.exception.ErrorCode;
+import com.example.library_management.enums.ReservationStatus;
 import com.example.library_management.mapper.BookMapper;
 import com.example.library_management.repository.BookRepository;
 import com.example.library_management.repository.CategoryRepository;
+import com.example.library_management.repository.ReservationRepository;
+import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class BookService {
+    private static final Set<ReservationStatus> ACTIVE_STATUSES = Set.of(
+            ReservationStatus.PENDING, ReservationStatus.ACCEPTED);
+
     BookRepository bookRepository;
     CategoryRepository categoryRepository;
+    ReservationRepository reservationRepository;
+    UserRepository userRepository;
     BookMapper bookMapper;
 
-//    CREATE BOOK
+    // Gan them so ban dang duoc giu cho nguoi da dat (ACCEPTED), tinh dong khong luu cot rieng
+    private BookResponse enrich(BookResponse response, Long bookId) {
+        response.setReservedCopies((int) reservationRepository.countByBookIdAndStatus(bookId, ReservationStatus.ACCEPTED));
+        return response;
+    }
+
+    //    CREATE BOOK
     @Transactional
     public BookResponse createBook(BookRequest request) {
         if(StringUtils.hasText(request.getIsbn()) && bookRepository.existsByIsbn(request.getIsbn())) {
@@ -40,14 +58,14 @@ public class BookService {
         book.setCategory(category);
         book.setStatus(computeStatus(book.getAvailableCopies()));
 
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        return enrich(bookMapper.toBookResponse(bookRepository.save(book)), book.getId());
     }
 
     @Transactional(readOnly = true)
     public List<BookResponse> getAllBooks() {
         return bookRepository.findAll()
                 .stream()
-                .map(bookMapper::toBookResponse)
+                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()))
                 .toList();
     }
 
@@ -55,7 +73,33 @@ public class BookService {
     public BookResponse getBookById(Long id) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
-        return bookMapper.toBookResponse(book);
+        BookResponse response = enrich(bookMapper.toBookResponse(book), book.getId());
+
+        // Gan them tinh trang dat sach cua CHINH nguoi dang xem (dung cho trang chi tiet 1 sach)
+        String currentUserId = getCurrentUserId();
+        if (currentUserId != null) {
+            reservationRepository
+                    .findByUserIdAndBookIdAndStatusIn(currentUserId, book.getId(), ACTIVE_STATUSES)
+                    .stream()
+                    .findFirst()
+                    .ifPresent(reservation -> {
+                        response.setMyReservationId(reservation.getId());
+                        response.setMyReservationStatus(reservation.getStatus());
+                        response.setMyReservationExpiryDate(reservation.getExpiryDate());
+                        if (reservation.getStatus() == ReservationStatus.PENDING) {
+                            List<Reservation> queue = reservationRepository
+                                    .findByBookIdAndStatusOrderByCreatedAtAscIdAsc(book.getId(), ReservationStatus.PENDING);
+                            for (int i = 0; i < queue.size(); i++) {
+                                if (queue.get(i).getId().equals(reservation.getId())) {
+                                    response.setMyReservationQueuePosition(i + 1);
+                                    break;
+                                }
+                            }
+                        }
+                    });
+        }
+
+        return response;
     }
 
     @Transactional
@@ -86,7 +130,7 @@ public class BookService {
         book.setAvailableCopies(request.getTotalCopies() - borrowedCopies);
         book.setStatus(computeStatus(book.getAvailableCopies()));
 
-        return bookMapper.toBookResponse(bookRepository.save(book));
+        return enrich(bookMapper.toBookResponse(bookRepository.save(book)), book.getId());
     }
 
     @Transactional
@@ -105,6 +149,18 @@ public class BookService {
         return availableCopies > 0 ? BookStatus.AVAILABLE : BookStatus.OUT_OF_STOCK;
     }
 
+    // Lay id user hien tai neu da dang nhap hop le, tra ve null neu khong xac dinh duoc (khong throw
+    // vi day chi la thong tin bo sung, khong bat buoc de xem duoc chi tiet sach)
+    private String getCurrentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        return userRepository.findByUsername(authentication.getName())
+                .map(User::getId)
+                .orElse(null);
+    }
+
     @Transactional(readOnly = true)
     public List<BookResponse> searchBooks(String keyword) {
         if (!StringUtils.hasText(keyword)) {
@@ -113,7 +169,7 @@ public class BookService {
         }
         return bookRepository.searchBooks(keyword.trim())
                 .stream()
-                .map(bookMapper::toBookResponse)
+                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()))
                 .toList();
     }
 }

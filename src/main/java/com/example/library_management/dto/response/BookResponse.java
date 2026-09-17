@@ -6,8 +6,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
+
+import com.example.library_management.enums.ReservationStatus;
 
 @Data
 @Builder
@@ -25,6 +28,15 @@ public class BookResponse {
     String coverImageUrl;
     Integer totalCopies;
     Integer availableCopies;
+    // So ban dang duoc giu (Reservation o trang thai ACCEPTED), khong tinh PENDING vi PENDING chua giu sach
+    Integer reservedCopies;
+    // Trang thai dat sach cua CHINH nguoi dang xem (PENDING/ACCEPTED), null neu chua dat / da xu ly xong
+    ReservationStatus myReservationStatus;
+    Long myReservationId;
+    // Chi co gia tri khi myReservationStatus = ACCEPTED - han den lay
+    LocalDate myReservationExpiryDate;
+    // Vi tri trong hang doi neu myReservationStatus = PENDING, null neu khong ap dung
+    Integer myReservationQueuePosition;
     String shelfLocation;
     BookStatus status;
     CategoryResponse category;

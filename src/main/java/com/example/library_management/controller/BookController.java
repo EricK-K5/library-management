@@ -27,7 +27,7 @@ public class BookController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('book:read')")
+//    @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<List<BookResponse>> getAllBooks() {
         return ApiResponse.<List<BookResponse>>builder()
                 .result(bookService.getAllBooks())
@@ -35,7 +35,7 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('book:read')")
+//    @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<BookResponse> getBookById(@PathVariable Long id) {
         return ApiResponse.<BookResponse>builder()
                 .result(bookService.getBookById(id))

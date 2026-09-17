@@ -10,7 +10,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,19 +33,22 @@ public class Reservation {
     @Builder.Default
     LocalDate reservationDate = LocalDate.now();
 
-    @Column(name = "expiry_date", nullable = false)
-    LocalDate expiryDate; // hết hạn giữ chỗ nếu không đến lấy
+    // Chi co gia tri khi status = ACCEPTED (han 2 ngay den lay)
+    @Column(name = "expiry_date")
+    LocalDate expiryDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     ReservationStatus status = ReservationStatus.PENDING;
 
-    // Thứ tự trong hàng chờ nếu sách đang hết
-    @Column(name = "queue_position")
-    Integer queuePosition;
+    // Nguoi (LIBRARIAN/ADMIN) da xu ly accept/cancel thu cong, null neu he thong tu dong accept
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "processed_by")
+    User processedBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
 }
+

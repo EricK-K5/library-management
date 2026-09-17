@@ -13,18 +13,16 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BorrowRecordResponse {
+public class MyBorrowRecordResponse {
     Long id;
-    UserResponse user;
     BookResponse book;
     LocalDate borrowDate;
     LocalDate dueDate;
     LocalDate returnDate;
     BorrowStatus status;
     String processedByUsername;
-    // Neu luot muon nay den tu 1 reservation da duoc accept truoc do, null neu muon truc tiep
-    Long reservationId;
     String note;
+    Long reservationId;
     FineResponse fine;
     LocalDateTime createdAt;
 }

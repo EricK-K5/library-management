@@ -11,7 +11,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +48,11 @@ public class BorrowRecord {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by")
     private User processedBy;
+
+    // Neu luot muon nay den tu 1 reservation da ACCEPTED (mang di lay), null neu la muon truc tiep khong qua dat truoc
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id")
+    private Reservation reservation;
 
     @OneToOne(mappedBy = "borrowRecord", cascade = CascadeType.ALL)
     private Fine fine;

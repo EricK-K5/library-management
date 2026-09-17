@@ -4,6 +4,7 @@ import com.example.library_management.dto.request.BorrowRecordRequest;
 import com.example.library_management.dto.request.BorrowReturnRequest;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.BorrowRecordResponse;
+import com.example.library_management.dto.response.MyBorrowRecordResponse;
 import com.example.library_management.service.BorrowRecordService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +44,8 @@ public class BorrowRecordController {
     // Danh sach cua chinh minh (MEMBER)
     @GetMapping("/my")
     @PreAuthorize("hasAuthority('borrow:read')")
-    public ApiResponse<List<BorrowRecordResponse>> getMyBorrowRecords() {
-        return ApiResponse.<List<BorrowRecordResponse>>builder()
+    public ApiResponse<List<MyBorrowRecordResponse>> getMyBorrowRecords() {
+        return ApiResponse.<List<MyBorrowRecordResponse>>builder()
                 .result(borrowRecordService.getMyBorrowRecords())
                 .build();
     }

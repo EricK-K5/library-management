@@ -22,6 +22,10 @@ public class SecurityConfig {
             "/users", "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh"
     };
 
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
+            "/books"
+    };
+
     private CustomJwtDecoder customJwtDecoder;
     public SecurityConfig(CustomJwtDecoder customJwtDecoder){
         this.customJwtDecoder = customJwtDecoder;
@@ -36,6 +40,8 @@ public class SecurityConfig {
                         request
 //                    CHO PHEP OPTIONS đi qua khi backend có CORS + frontend khác origin.
                                 .requestMatchers(HttpMethod.OPTIONS, "/**")
+                                .permitAll()
+                                .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS)
                                 .permitAll()
                                 .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS)
                                 .permitAll()
