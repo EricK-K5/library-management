@@ -110,7 +110,7 @@ public class ReservationService {
         return reservationMapper.toReservationResponse(reservationRepository.save(reservation));
     }
 
-    // LIBRARIAN/ADMIN huy ho (ap dung ca cho PENDING lan ACCEPTED). Neu dang ACCEPTED thi tra lai suat giu + day hang doi.
+    // LIBRARIAN/ADMIN huy ho. Neu dang ACCEPTED thi tra lai suat giu + day hang doi.
     @Transactional
     public ReservationResponse cancelReservationByStaff(Long id) {
         User staff = getCurrentUser();
@@ -135,31 +135,31 @@ public class ReservationService {
     }
 
     // LIBRARIAN/ADMIN duyet thu cong 1 reservation dang PENDING - phai la nguoi dau hang doi
-    @Transactional
-    public ReservationResponse acceptReservationManually(Long id) {
-        User staff = getCurrentUser();
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
-
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new AppException(ErrorCode.RESERVATION_ALREADY_PROCESSED);
-        }
-
-        Book book = bookRepository.findByIdForUpdate(reservation.getBook().getId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
-
-        List<Reservation> queue = reservationRepository.findQueueForUpdate(book.getId(), ReservationStatus.PENDING);
-        if (queue.isEmpty() || !queue.get(0).getId().equals(reservation.getId())) {
-            throw new AppException(ErrorCode.RESERVATION_NOT_FIRST_IN_QUEUE);
-        }
-
-        if (book.getAvailableCopies() == null || book.getAvailableCopies() <= 0) {
-            throw new AppException(ErrorCode.BOOK_NOT_AVAILABLE);
-        }
-
-        acceptAndHold(reservation, book, staff);
-        return reservationMapper.toReservationResponse(reservationRepository.save(reservation));
-    }
+//    @Transactional
+//    public ReservationResponse acceptReservationManually(Long id) {
+//        User staff = getCurrentUser();
+//        Reservation reservation = reservationRepository.findById(id)
+//                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
+//
+//        if (reservation.getStatus() != ReservationStatus.PENDING) {
+//            throw new AppException(ErrorCode.RESERVATION_ALREADY_PROCESSED);
+//        }
+//
+//        Book book = bookRepository.findByIdForUpdate(reservation.getBook().getId())
+//                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+//
+//        List<Reservation> queue = reservationRepository.findQueueForUpdate(book.getId(), ReservationStatus.PENDING);
+//        if (queue.isEmpty() || !queue.get(0).getId().equals(reservation.getId())) {
+//            throw new AppException(ErrorCode.RESERVATION_NOT_FIRST_IN_QUEUE);
+//        }
+//
+//        if (book.getAvailableCopies() == null || book.getAvailableCopies() <= 0) {
+//            throw new AppException(ErrorCode.BOOK_NOT_AVAILABLE);
+//        }
+//
+//        acceptAndHold(reservation, book, staff);
+//        return reservationMapper.toReservationResponse(reservationRepository.save(reservation));
+//    }
 
     // Job dinh ky: quet reservation ACCEPTED da qua expiryDate ma chua den lay -> EXPIRED, roi tu dong day hang doi
     @Transactional

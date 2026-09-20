@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Set;
 
 import com.example.library_management.enums.ReservationStatus;
 
@@ -28,7 +27,7 @@ public class BookResponse {
     String coverImageUrl;
     Integer totalCopies;
     Integer availableCopies;
-    // So ban dang duoc giu (Reservation o trang thai ACCEPTED), khong tinh PENDING vi PENDING chua giu sach
+    // So ban dang duoc giu (Reservation o trang thai ACCEPTED), khong tinh PENDING
     Integer reservedCopies;
     // Trang thai dat sach cua CHINH nguoi dang xem (PENDING/ACCEPTED), null neu chua dat / da xu ly xong
     ReservationStatus myReservationStatus;
