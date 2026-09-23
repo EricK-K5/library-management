@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -15,14 +16,26 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MyBorrowRecordResponse {
     Long id;
+
     BookResponse book;
+
     LocalDate borrowDate;
+
     LocalDate dueDate;
+
+    LocalDate lostDate;
+
     LocalDate returnDate;
+
     BorrowStatus status;
+
     String processedByUsername;
+
     String note;
+
     Long reservationId;
-    FineResponse fine;
+
+    List<FineResponse> fines;
+
     LocalDateTime createdAt;
 }

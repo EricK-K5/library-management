@@ -32,8 +32,9 @@ import java.util.Set;
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class ReservationService {
 
-    // Cung han muc voi BorrowRecordService: toi da 5 "suat sach" (dang muon + dang giu cho/xep hang) / user
-    private static final int MAX_BORROW_LIMIT = 5;
+    // Cung han muc voi BorrowRecordService: toi da 5 "suat sach" / user, gom
+    // BORROWED + OVERDUE + LOST (chua xu ly xong fine) + reservation dang giu cho/xep hang
+    private static final int DEFAULT_BORROW_LIMIT = 5;
     private static final int HOLD_DAYS = 2;
 
     private static final Set<ReservationStatus> ACTIVE_STATUSES = Set.of(
@@ -55,6 +56,10 @@ public class ReservationService {
             throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
         }
 
+        if (borrowRecordRepository.existsByUserIdAndStatus(user.getId(), BorrowStatus.OVERDUE)) {
+            throw new AppException(ErrorCode.USER_HAS_OVERDUE_BOOK);
+        }
+
         // pessimistic lock tren book de tranh race condition giua nhieu nguoi dat cung luc
         Book book = bookRepository.findByIdForUpdate(request.getBookId())
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
@@ -67,9 +72,10 @@ public class ReservationService {
             throw new AppException(ErrorCode.RESERVATION_DUPLICATED);
         }
 
-        long currentBorrowing = borrowRecordRepository.countByUserIdAndStatus(user.getId(), BorrowStatus.BORROWED);
+        long currentBorrowing = borrowRecordRepository.countBorrowSlotsInUse(user.getId());
         long currentReserving = reservationRepository.countByUserIdAndStatusIn(user.getId(), ACTIVE_STATUSES);
-        if (currentBorrowing + currentReserving >= MAX_BORROW_LIMIT) {
+        int limit = user.getMaxBorrowLimit() != null ? user.getMaxBorrowLimit() : DEFAULT_BORROW_LIMIT;
+        if (currentBorrowing + currentReserving >= limit) {
             throw new AppException(ErrorCode.BORROW_LIMIT_EXCEEDED);
         }
 
@@ -174,6 +180,25 @@ public class ReservationService {
             reservationRepository.save(reservation);
             releaseAndPromote(reservation.getBook().getId());
         }
+    }
+
+//    Update sach thi tu dong day PENDING -> ACCEPTED neu avaiable ++
+    @Transactional
+    public void promotePendingQueue(Long bookId) {
+        Book book = bookRepository.findByIdForUpdate(bookId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+
+        while (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
+            List<Reservation> queue = reservationRepository.findQueueForUpdate(bookId, ReservationStatus.PENDING);
+            if (queue.isEmpty()) {
+                break;
+            }
+            Reservation next = queue.get(0);
+            acceptAndHold(next, book, null);
+            reservationRepository.save(next);
+        }
+        applyComputedStatus(book);
+        bookRepository.save(book);
     }
 
     // Giai phong 1 suat sach (vi 1 ACCEPTED vua bi huy/het han) va tu dong day nguoi dau PENDING queue len ACCEPTED

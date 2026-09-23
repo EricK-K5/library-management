@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RoleSummaryResponse {
     Long id;
+
     String name;
+
     int permissionCount;
 }

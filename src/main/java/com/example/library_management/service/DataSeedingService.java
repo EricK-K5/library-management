@@ -82,7 +82,7 @@ public class DataSeedingService {
                     userRead,
                     borrowRead, borrowCreate, borrowReturn, borrowRenew, borrowManage,
                     reservationRead, reservationManage,
-                    fineRead, fineCreate, finePay,
+                    fineRead, fineCreate, finePay,fineManage,
                     reportRead
             )));
             roleRepository.save(librarianRole);

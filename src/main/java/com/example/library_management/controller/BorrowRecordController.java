@@ -2,6 +2,7 @@ package com.example.library_management.controller;
 
 import com.example.library_management.dto.request.BorrowRecordRequest;
 import com.example.library_management.dto.request.BorrowReturnRequest;
+import com.example.library_management.dto.request.MarkLostRequest;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.BorrowRecordResponse;
 import com.example.library_management.dto.response.MyBorrowRecordResponse;
@@ -74,6 +75,17 @@ public class BorrowRecordController {
     public ApiResponse<List<BorrowRecordResponse>> getBorrowRecordsByUser(@PathVariable String userId) {
         return ApiResponse.<List<BorrowRecordResponse>>builder()
                 .result(borrowRecordService.getBorrowRecordsByUser(userId))
+                .build();
+    }
+
+    // Bao mat sach: chi LIBRARIAN/ADMIN. Tao Fine (tre han + den sach), giam totalCopies, record van chiem slot
+    // trong han muc muon cho toi khi het Fine UNPAID. LOST la trang thai cuoi, khong tra lai duoc.
+    @PutMapping("/{id}/lost")
+    @PreAuthorize("hasAuthority('borrow:return')")
+    public ApiResponse<BorrowRecordResponse> markLost(
+            @PathVariable Long id, @Valid @RequestBody(required = false) MarkLostRequest request) {
+        return ApiResponse.<BorrowRecordResponse>builder()
+                .result(borrowRecordService.markLost(id, request))
                 .build();
     }
 }

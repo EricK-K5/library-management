@@ -38,8 +38,9 @@ public class BookService {
     ReservationRepository reservationRepository;
     UserRepository userRepository;
     BookMapper bookMapper;
+    ReservationService reservationService;
 
-    // Gan them so ban dang duoc giu cho nguoi da dat (ACCEPTED), tinh dong khong luu cot rieng
+    // Gan them so ban dang duoc giu cho nguoi da dat (ACCEPTED)
     private BookResponse enrich(BookResponse response, Long bookId) {
         response.setReservedCopies((int) reservationRepository.countByBookIdAndStatus(bookId, ReservationStatus.ACCEPTED));
         return response;
@@ -125,12 +126,25 @@ public class BookService {
             throw new AppException(ErrorCode.TOTAL_COPIES_LESS_THAN_BORROWED);
         }
 
+        int oldAvailableCopies = book.getAvailableCopies();
+
         bookMapper.updateBook(book, request);
         // dieu chinh available theo delta cua total (khong dung mapper vi mapper dang ignore field nay)
-        book.setAvailableCopies(request.getTotalCopies() - borrowedCopies);
-        book.setStatus(computeStatus(book.getAvailableCopies()));
+        int newAvailableCopies = request.getTotalCopies() - borrowedCopies;
+        book.setAvailableCopies(newAvailableCopies);
+        book.setStatus(computeStatus(newAvailableCopies));
 
-        return enrich(bookMapper.toBookResponse(bookRepository.save(book)), book.getId());
+        Book saved = bookRepository.save(book);
+
+        // Neu so ban co the muon tang len (vd them ban moi), tu dong day hang doi PENDING len ACCEPTED
+        // truoc khi cho phep bat ky ai khac muon truc tiep cac ban vua them.
+        if (newAvailableCopies > oldAvailableCopies) {
+            reservationService.promotePendingQueue(saved.getId());
+            saved = bookRepository.findById(saved.getId())
+                    .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+        }
+
+        return enrich(bookMapper.toBookResponse(saved), saved.getId());
     }
 
     @Transactional

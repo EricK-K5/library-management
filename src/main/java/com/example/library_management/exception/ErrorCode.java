@@ -34,16 +34,25 @@ public enum ErrorCode {
     BORROW_RECORD_NOT_EXISTED("Borrow record not existed", 4001, HttpStatus.NOT_FOUND),
     BORROW_LIMIT_EXCEEDED("Borrow limit exceeded", 4002, HttpStatus.BAD_REQUEST),
     BORROW_ALREADY_RETURNED("Borrow record already returned", 4003, HttpStatus.BAD_REQUEST),
-    USER_HAS_UNPAID_FINE("User has unpaid fine", 4001, HttpStatus.BAD_REQUEST),
+    BORROW_ALREADY_LOST("Borrow record already marked as LOST", 4004, HttpStatus.BAD_REQUEST),
+    BORROW_CANNOT_MARK_LOST("Borrow record cannot be marked as LOST", 4005, HttpStatus.BAD_REQUEST),
 
 
     RESERVATION_NOT_EXISTED("Reservation not existed", 5001, HttpStatus.NOT_FOUND),
     RESERVATION_ALREADY_PROCESSED("Reservation already processed", 5002, HttpStatus.BAD_REQUEST),
     RESERVATION_DUPLICATED("Reservation duplicated", 5003, HttpStatus.BAD_REQUEST),
     RESERVATION_NOT_PENDING("Reservation not pending", 5004, HttpStatus.BAD_REQUEST),
-    RESERVATION_NOT_FIRST_IN_QUEUE("Reservation not first in queue", 5005, HttpStatus.BAD_REQUEST),
-    RESERVATION_HAS_ACTIVE_PENDING("Reservation has active pending", 5006, HttpStatus.BAD_REQUEST),
-    RESERVATION_NOT_ACCEPTED("Reservation not accepted", 5007, HttpStatus.BAD_REQUEST);
+    RESERVATION_HAS_ACTIVE_PENDING("Reservation has active pending", 5005, HttpStatus.BAD_REQUEST),
+    RESERVATION_NOT_ACCEPTED("Reservation not accepted", 5006, HttpStatus.BAD_REQUEST),
+
+    FINE_NOT_UNPAID("Fine is not unpaid", 6000, HttpStatus.BAD_REQUEST),
+    FINE_REASON_NOT_ALLOWED("Fine reason is not allowed", 6003, HttpStatus.BAD_REQUEST),
+    FINE_ALREADY_EXISTED("Fine already existed", 6004, HttpStatus.BAD_REQUEST),
+    FINE_NOT_EXISTED("Fine not existed", 6005, HttpStatus.NOT_FOUND),
+
+    USER_HAS_OVERDUE_BOOK("User has overdue books", 7001, HttpStatus.BAD_REQUEST),
+    USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST);
+
 
     ErrorCode(String message, int code, HttpStatus httpStatus) {
         this.message = message;

@@ -27,8 +27,8 @@ public class Fine {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "borrow_record_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "borrow_record_id", nullable = false)
     private BorrowRecord borrowRecord;
 
     @Column(nullable = false, precision = 12, scale = 2)
@@ -36,7 +36,7 @@ public class Fine {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private FineReason reason; // OVERDUE, LOST_BOOK, DAMAGED_BOOK
+    private FineReason reason;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -47,8 +47,14 @@ public class Fine {
     @Builder.Default
     private LocalDate issuedDate = LocalDate.now();
 
+    // Ngay thu tien
     @Column(name = "paid_date")
     private LocalDate paidDate;
+
+    // Nguoi xu ly gan nhat (thu tien / mien). null neu he thong tu dong tao
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "processed_by")
+    private User processedBy;
 
     @Column(length = 255)
     private String note;

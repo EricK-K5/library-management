@@ -9,7 +9,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PermissionResponse {
     Long id;
+
     String code;
+
     String description;
+
     String module;
 }

@@ -16,10 +16,26 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class FineResponse {
     Long id;
+
+    Long borrowRecordId;
+
+    String userId;
+
+    String username;
+
+    String bookTitle;
+
     BigDecimal amount;
+
     FineReason reason;
+
     FineStatus status;
+
     LocalDate issuedDate;
+
     LocalDate paidDate;
+
+    String processedByUsername;
+
     String note;
 }

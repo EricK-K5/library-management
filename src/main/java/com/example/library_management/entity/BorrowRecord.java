@@ -9,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -54,8 +56,10 @@ public class BorrowRecord {
     @JoinColumn(name = "reservation_id")
     private Reservation reservation;
 
-    @OneToOne(mappedBy = "borrowRecord", cascade = CascadeType.ALL)
-    private Fine fine;
+    // Toi da 1 Fine cho moi FineReason
+    @OneToMany(mappedBy = "borrowRecord", cascade = CascadeType.ALL)
+    @Builder.Default
+    private List<Fine> fines = new ArrayList<>();
 
     @Column(length = 255)
     private String note;
@@ -63,4 +67,7 @@ public class BorrowRecord {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "lost_date")
+    private LocalDate lostDate;
 }

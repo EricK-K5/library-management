@@ -2,6 +2,7 @@ package com.example.library_management.service;
 
 import com.example.library_management.dto.request.BorrowRecordRequest;
 import com.example.library_management.dto.request.BorrowReturnRequest;
+import com.example.library_management.dto.request.MarkLostRequest;
 import com.example.library_management.dto.response.BorrowRecordResponse;
 import com.example.library_management.dto.response.MyBorrowRecordResponse;
 import com.example.library_management.entity.Book;
@@ -42,10 +43,19 @@ import java.util.Set;
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class BorrowRecordService {
 
-    // 7 ngay muon mac dinh, toi da 5 "suat sach" (dang muon + dang dat/giu cho)/user, 5.000 VND/ngay tre
+    // 7 ngay muon mac dinh, toi da 5 "suat sach" (dang muon + qua han + mat chua xu ly xong + dang dat/giu cho)/user,
+    // 5.000 VND/ngay tre (tran 30 ngay = 150.000 VND)
     private static final int BORROW_DAYS = 7;
-    private static final int MAX_BORROW_LIMIT = 5;
+    private static final int DEFAULT_BORROW_LIMIT = 5;
     private static final BigDecimal FINE_PER_DAY = new BigDecimal("5000");
+    private static final int MAX_OVERDUE_FINE_DAYS = 30;
+
+    // Qua han tu ngay thu 30 tro di ma chua tra -> tu dong coi la mat sach
+    private static final int AUTO_LOST_AFTER_DAYS = 30;
+    // Tien den = gia sach + phi xu ly. Sach chua nhap gia thi dung muc mac dinh (thu thu co the nhap lostAmount de ghi de)
+    private static final BigDecimal LOST_PROCESSING_FEE = new BigDecimal("20000");
+    private static final BigDecimal DEFAULT_REPLACEMENT_COST = new BigDecimal("100000");
+
     private static final Set<ReservationStatus> ACTIVE_RESERVATION_STATUSES = Set.of(
             ReservationStatus.PENDING, ReservationStatus.ACCEPTED);
 
@@ -68,11 +78,9 @@ public class BorrowRecordService {
             throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
         }
 
-        // chan muon neu da dat gioi han so "suat sach" (dang muon + dang dat/giu cho o Reservation)
-        long currentBorrowing = borrowRecordRepository.countByUserIdAndStatus(user.getId(), BorrowStatus.BORROWED);
-        long currentReserving = reservationRepository.countByUserIdAndStatusIn(user.getId(), ACTIVE_RESERVATION_STATUSES);
-        if (currentBorrowing + currentReserving >= MAX_BORROW_LIMIT) {
-            throw new AppException(ErrorCode.BORROW_LIMIT_EXCEEDED);
+        // chan muon neu con sach qua han chua tra
+        if (borrowRecordRepository.existsByUserIdAndStatus(user.getId(), BorrowStatus.OVERDUE)) {
+            throw new AppException(ErrorCode.USER_HAS_OVERDUE_BOOK);
         }
 
         // pessimistic lock
@@ -96,7 +104,15 @@ public class BorrowRecordService {
                 .findByUserIdAndBookIdAndStatus(user.getId(), book.getId(), ReservationStatus.ACCEPTED);
 
         if (myAccepted.isEmpty()) {
-            // Muon truc tiep, khong thong qua reservation cua chinh minh:
+            // Muon truc tiep: them 1 slot MOI -> phai kiem tra han muc.
+            // slot dang dung = BORROWED + OVERDUE + LOST (con fine UNPAID) + reservation PENDING/ACCEPTED
+            // (Nhan sach da giu thi khong kiem tra: RESERVATION -1, BORROWED +1, tong slot khong doi)
+            long currentSlots = borrowRecordRepository.countBorrowSlotsInUse(user.getId())
+                    + reservationRepository.countByUserIdAndStatusIn(user.getId(), ACTIVE_RESERVATION_STATUSES);
+            if (currentSlots >= limitOf(user)) {
+                throw new AppException(ErrorCode.BORROW_LIMIT_EXCEEDED);
+            }
+
             // chi duoc muon khi con sach VA khong co ai dang xep hang (PENDING) cho sach nay
             if (book.getAvailableCopies() == null || book.getAvailableCopies() <= 0) {
                 throw new AppException(ErrorCode.BOOK_NOT_AVAILABLE);
@@ -129,15 +145,21 @@ public class BorrowRecordService {
     }
 
     // TRA SACH - chi LIBRARIAN/ADMIN xac nhan (permission borrow:return)
+    // Record da LOST la trang thai cuoi: khong tra lai duoc (khong co luong "tim lai sach")
     @Transactional
     public BorrowRecordResponse returnBook(Long borrowRecordId, BorrowReturnRequest request) {
         User processedBy = getCurrentUser();
 
-        BorrowRecord borrowRecord = borrowRecordRepository.findById(borrowRecordId)
+        // khoa record truoc, roi moi khoa book (cung thu tu voi markLost / autoMarkLost)
+        BorrowRecord borrowRecord = borrowRecordRepository.findByIdForUpdate(borrowRecordId)
                 .orElseThrow(() -> new AppException(ErrorCode.BORROW_RECORD_NOT_EXISTED));
 
         if (borrowRecord.getStatus() == BorrowStatus.RETURNED) {
             throw new AppException(ErrorCode.BORROW_ALREADY_RETURNED);
+        }
+
+        if (borrowRecord.getStatus() == BorrowStatus.LOST) {
+            throw new AppException(ErrorCode.BORROW_ALREADY_LOST);
         }
 
         LocalDate today = LocalDate.now();
@@ -153,24 +175,164 @@ public class BorrowRecordService {
         // DISCONTINUED, khong tu y "hoi sinh" sach da ngung luu hanh.
         reservationService.releaseAndPromote(borrowRecord.getBook().getId());
 
-        // tra tre han -> tu dong tao Fine 5.000 VND/ngay tre
-        if (today.isAfter(borrowRecord.getDueDate())) {
-            long lateDays = ChronoUnit.DAYS.between(borrowRecord.getDueDate(), today);
-            BigDecimal amount = FINE_PER_DAY.multiply(BigDecimal.valueOf(lateDays));
-
-            Fine fine = Fine.builder()
-                    .user(borrowRecord.getUser())
-                    .borrowRecord(borrowRecord)
-                    .amount(amount)
-                    .reason(FineReason.OVERDUE)
-                    .status(FineStatus.UNPAID)
-                    .issuedDate(today)
-                    .note("Tre han " + lateDays + " ngay")
-                    .build();
-            borrowRecord.setFine(fine);
-        }
+        // tra tre han -> tu dong tao Fine 5.000 VND/ngay tre (toi da 30 ngay)
+        createOverdueFine(borrowRecord, today);
 
         return borrowRecordMapper.toBorrowRecordResponse(borrowRecordRepository.save(borrowRecord));
+    }
+
+    // BAO MAT SACH - LIBRARIAN/ADMIN (permission borrow:return)
+    @Transactional
+    public BorrowRecordResponse markLost(Long borrowRecordId, MarkLostRequest request) {
+        User staff = getCurrentUser();
+
+        BorrowRecord borrowRecord = borrowRecordRepository.findByIdForUpdate(borrowRecordId)
+                .orElseThrow(() -> new AppException(ErrorCode.BORROW_RECORD_NOT_EXISTED));
+
+        String note = request != null ? request.getNote() : null;
+        BigDecimal lostAmount = request != null ? request.getLostAmount() : null;
+
+        return borrowRecordMapper.toBorrowRecordResponse(
+                applyLost(borrowRecord, staff, note, lostAmount, false));
+    }
+
+    // ===================== JOB TU DONG (goi tu BorrowScheduler) =====================
+
+    // BORROWED da qua han -> OVERDUE
+    @Transactional
+    public int markOverdueRecords() {
+        List<BorrowRecord> records = borrowRecordRepository
+                .findByStatusAndDueDateBefore(BorrowStatus.BORROWED, LocalDate.now());
+        records.forEach(record -> record.setStatus(BorrowStatus.OVERDUE));
+        borrowRecordRepository.saveAll(records);
+        return records.size();
+    }
+
+    // Id cac OVERDUE da qua AUTO_LOST_AFTER_DAYS ngay. Scheduler goi autoMarkLost(id) tung cai
+    // de moi record 1 transaction rieng, 1 record loi khong lam hong ca batch.
+    @Transactional(readOnly = true)
+    public List<Long> findLongOverdueRecordIds() {
+        LocalDate threshold = LocalDate.now().minusDays(AUTO_LOST_AFTER_DAYS);
+        return borrowRecordRepository
+                .findByStatusAndDueDateLessThanEqual(BorrowStatus.OVERDUE, threshold)
+                .stream()
+                .map(BorrowRecord::getId)
+                .toList();
+    }
+
+    @Transactional
+    public void autoMarkLost(Long borrowRecordId) {
+        BorrowRecord borrowRecord = borrowRecordRepository.findByIdForUpdate(borrowRecordId).orElse(null);
+        // Da bi thu thu tra / bao mat truoc khi job toi luot -> bo qua
+        if (borrowRecord == null || borrowRecord.getStatus() != BorrowStatus.OVERDUE) {
+            return;
+        }
+        applyLost(borrowRecord, null,
+                "Tu dong: qua han " + AUTO_LOST_AFTER_DAYS + " ngay chua tra sach", null, true);
+    }
+
+    // ===================== LOGIC DUNG CHUNG =====================
+
+    // Danh dau LOST. Goi khi da giu lock cua borrowRecord.
+    //  - tao Fine OVERDUE (neu tre) + Fine LOST_BOOK (cong don)
+    //  - totalCopies -= 1, KHONG cong availableCopies, KHONG releaseAndPromote (khong co ban nao ve kho)
+    //  - record van chiem slot trong han muc muon cho toi khi het Fine UNPAID (xem countSlotsInUse)
+    //  - LOST la trang thai cuoi, khong co buoc "tim lai sach"
+    private BorrowRecord applyLost(BorrowRecord borrowRecord, User processedBy, String note,
+                                   BigDecimal lostAmountOverride, boolean auto) {
+        if (borrowRecord.getStatus() == BorrowStatus.LOST) {
+            throw new AppException(ErrorCode.BORROW_ALREADY_LOST);
+        }
+        if (borrowRecord.getStatus() != BorrowStatus.BORROWED
+                && borrowRecord.getStatus() != BorrowStatus.OVERDUE) {
+            throw new AppException(ErrorCode.BORROW_CANNOT_MARK_LOST);
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // khoa book sau khi da khoa record
+        Book book = bookRepository.findByIdForUpdate(borrowRecord.getBook().getId())
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+
+        borrowRecord.setStatus(BorrowStatus.LOST);
+        borrowRecord.setLostDate(today);
+        borrowRecord.setProcessedBy(processedBy); // null neu he thong tu dong
+        if (StringUtils.hasText(note)) {
+            borrowRecord.setNote(note);
+        }
+
+        // 1) phi tre han tinh toi ngay mat (neu co)
+        createOverdueFine(borrowRecord, today);
+
+        // 2) tien den sach
+        BigDecimal amount;
+        String fineNote;
+        if (lostAmountOverride != null) {
+            amount = lostAmountOverride;
+            fineNote = "Mat sach: so tien do thu thu dinh gia";
+        } else {
+            BigDecimal price = book.getPrice() != null ? book.getPrice() : DEFAULT_REPLACEMENT_COST;
+            amount = price.add(LOST_PROCESSING_FEE);
+            fineNote = "Mat sach: gia sach " + price.toPlainString()
+                    + (book.getPrice() == null ? " (mac dinh, chua nhap gia)" : "")
+                    + " + phi xu ly " + LOST_PROCESSING_FEE.toPlainString();
+        }
+        if (auto) {
+            fineNote = "Tu dong. " + fineNote;
+        }
+        saveFine(borrowRecord, FineReason.LOST_BOOK, amount, today, fineNote);
+
+        // 3) kho: ban mat khong quay lai -> ghi giam tong so ban, giu nguyen availableCopies
+        book.setTotalCopies(Math.max(0, book.getTotalCopies() - 1));
+        applyComputedStatus(book);
+        bookRepository.save(book);
+
+        return borrowRecordRepository.save(borrowRecord);
+    }
+
+    // Tao Fine OVERDUE neu today > dueDate. So ngay tinh toi da MAX_OVERDUE_FINE_DAYS.
+    private void createOverdueFine(BorrowRecord borrowRecord, LocalDate today) {
+        if (!today.isAfter(borrowRecord.getDueDate())) {
+            return;
+        }
+        long lateDays = ChronoUnit.DAYS.between(borrowRecord.getDueDate(), today);
+        long chargedDays = Math.min(lateDays, MAX_OVERDUE_FINE_DAYS);
+        BigDecimal amount = FINE_PER_DAY.multiply(BigDecimal.valueOf(chargedDays));
+
+        String note = "Tre han " + lateDays + " ngay"
+                + (lateDays > chargedDays ? " (tinh toi da " + MAX_OVERDUE_FINE_DAYS + " ngay)" : "");
+        saveFine(borrowRecord, FineReason.OVERDUE, amount, today, note);
+    }
+
+    // Luu Fine bang persist ro rang (co id ngay) roi gan vao borrowRecord.fines
+    private void saveFine(BorrowRecord borrowRecord, FineReason reason, BigDecimal amount,
+                          LocalDate issuedDate, String note) {
+        Fine fine = Fine.builder()
+                .user(borrowRecord.getUser())
+                .borrowRecord(borrowRecord)
+                .amount(amount)
+                .reason(reason)
+                .status(FineStatus.UNPAID)
+                .issuedDate(issuedDate)
+                .note(truncate(note))
+                .build();
+        borrowRecord.getFines().add(fineRepository.save(fine));
+    }
+
+    // Khong tu dong "hoi sinh" mot sach da DISCONTINUED chi vi so luong thay doi
+    private void applyComputedStatus(Book book) {
+        if (book.getStatus() == BookStatus.DISCONTINUED) {
+            return;
+        }
+        book.setStatus(book.getAvailableCopies() > 0 ? BookStatus.AVAILABLE : BookStatus.OUT_OF_STOCK);
+    }
+
+    private int limitOf(User user) {
+        return user.getMaxBorrowLimit() != null ? user.getMaxBorrowLimit() : DEFAULT_BORROW_LIMIT;
+    }
+
+    private String truncate(String text) {
+        return text != null && text.length() > 255 ? text.substring(0, 255) : text;
     }
 
     // DANH SACH TAT CA (LIBRARIAN/ADMIN - borrow:manage)
