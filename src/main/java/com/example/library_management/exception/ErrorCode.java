@@ -29,7 +29,8 @@ public enum ErrorCode {
     BOOK_HAS_BORROW_RECORDS("Book has borrow records", 3003, HttpStatus.BAD_REQUEST),
     BOOK_NOT_AVAILABLE("Book is not available", 3004, HttpStatus.BAD_REQUEST),
     BOOK_DISCONTINUED("Book is discontinued", 3005, HttpStatus.BAD_REQUEST),
-    TOTAL_COPIES_LESS_THAN_BORROWED("Total copies cannot be less than borrowed copies", 3005, HttpStatus.BAD_REQUEST),
+    BOOK_HAS_ACTIVE_RESERVATIONS("Book has active reservations", 3006, HttpStatus.BAD_REQUEST),
+    TOTAL_COPIES_LESS_THAN_BORROWED("Total copies cannot be less than borrowed copies", 3007, HttpStatus.BAD_REQUEST),
 
     BORROW_RECORD_NOT_EXISTED("Borrow record not existed", 4001, HttpStatus.NOT_FOUND),
     BORROW_LIMIT_EXCEEDED("Borrow limit exceeded", 4002, HttpStatus.BAD_REQUEST),

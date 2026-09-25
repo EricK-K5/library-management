@@ -103,6 +103,10 @@ public class BookService {
         return response;
     }
 
+    private BookStatus computeStatus(int availableCopies) {
+        return availableCopies > 0 ? BookStatus.AVAILABLE : BookStatus.OUT_OF_STOCK;
+    }
+
     @Transactional
     public BookResponse updateBook(Long id, BookRequest request) {
         Book book = bookRepository.findById(id)
@@ -156,11 +160,13 @@ public class BookService {
             throw new AppException(ErrorCode.BOOK_HAS_BORROW_RECORDS);
         }
 
-        bookRepository.delete(book);
-    }
+        // Book.reservations dang cascade = ALL: neu khong chan o day, xoa sach se xoa "am tham" ca
+        // reservation PENDING/ACCEPTED cua member khac, ho mat cho ma khong duoc bao/huy dung cach.
+        if (reservationRepository.existsByBookIdAndStatusIn(id, ACTIVE_STATUSES)) {
+            throw new AppException(ErrorCode.BOOK_HAS_ACTIVE_RESERVATIONS);
+        }
 
-    private BookStatus computeStatus(int availableCopies) {
-        return availableCopies > 0 ? BookStatus.AVAILABLE : BookStatus.OUT_OF_STOCK;
+        bookRepository.delete(book);
     }
 
     // Lay id user hien tai neu da dang nhap hop le, tra ve null neu khong xac dinh duoc (khong throw
