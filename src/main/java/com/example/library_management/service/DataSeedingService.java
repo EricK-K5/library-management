@@ -63,6 +63,10 @@ public class DataSeedingService {
         Permission reportRead = createPermission("report:read", "View reports", "REPORT");
         Permission reportExport = createPermission("report:export", "Export reports", "REPORT");
 
+        Permission roleRead = createPermission("role:read", "View roles", "ROLE");
+        Permission roleUpdate = createPermission("role:update", "Update roles", "ROLE");
+        Permission roleDelete = createPermission("role:delete", "Delete roles", "ROLE");
+
         // GAN PERMISSION MAC DINH
         // Chi gan neu role dang KHONG co permission nao
         if (memberRole.getPermissions().isEmpty()) {
@@ -96,6 +100,7 @@ public class DataSeedingService {
                     borrowRead, borrowCreate, borrowReturn, borrowRenew, borrowManage,
                     reservationRead, reservationCreate, reservationCancel, reservationManage,
                     fineRead, fineCreate, finePay, fineWaive, fineManage,
+                    roleRead, roleUpdate, roleDelete,
                     reportRead, reportExport
             )));
             roleRepository.save(adminRole);

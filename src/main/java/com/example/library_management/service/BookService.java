@@ -18,6 +18,8 @@ import com.example.library_management.repository.ReservationRepository;
 import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,11 +65,9 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookResponse> getAllBooks() {
-        return bookRepository.findAll()
-                .stream()
-                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()))
-                .toList();
+    public Page<BookResponse> getAllBooks(Pageable pageable) {
+        return bookRepository.findAll(pageable)
+                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -182,14 +182,16 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookResponse> searchBooks(String keyword) {
+    public Page<BookResponse> searchBooks(String keyword, Pageable pageable) {
+
         if (!StringUtils.hasText(keyword)) {
-            // keyword rong thi tra ve tat ca, tranh loi query rong vo nghia
-            return getAllBooks();
+            return getAllBooks(pageable);
         }
-        return bookRepository.searchBooks(keyword.trim())
-                .stream()
-                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()))
-                .toList();
+
+        return bookRepository.searchBooks(keyword.trim(), pageable)
+                .map(book -> enrich(
+                        bookMapper.toBookResponse(book),
+                        book.getId()
+                ));
     }
 }

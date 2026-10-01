@@ -1,8 +1,7 @@
 package com.example.library_management.service;
+
 import com.example.library_management.dto.request.AuthenticationRequest;
 import com.example.library_management.dto.request.IntrospectRequest;
-import com.example.library_management.dto.request.LogOutRequest;
-import com.example.library_management.dto.request.RefreshRequest;
 import com.example.library_management.dto.response.AuthenticationResponse;
 import com.example.library_management.dto.response.IntrospectResponse;
 import com.example.library_management.entity.InvalidatedToken;
@@ -18,10 +17,9 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -30,7 +28,6 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
-import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.UUID;
 
@@ -39,160 +36,143 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationService {
+
+    public enum TokenType { ACCESS, REFRESH }
+
     UserRepository userRepository;
-    @NonFinal
-    @Value("${jwt.signerKey}")
-    String SIGNER_KEY;
-
-    @NonFinal
-    @Value("${jwt.valid-duration}")
-    long VALID_DURATION;
-
-    @NonFinal
-    @Value("${jwt.refreshable-duration}")
-    long REFRESH_DURATION;
     InvalidatedRepository invalidatedRepository;
+    PasswordEncoder passwordEncoder;
 
-    //    DANG NHAP KIEM TRA USER + PASSWORD => TAO TOKEN
-    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+    @NonFinal @Value("${jwt.access-key}")  String ACCESS_KEY;
+    @NonFinal @Value("${jwt.refresh-key}") String REFRESH_KEY;
+    @NonFinal @Value("${jwt.access-duration}")  long ACCESS_DURATION;
+    @NonFinal @Value("${jwt.refresh-duration}") long REFRESH_DURATION;
+
+    //LOGIN
+    public TokenPair authenticate(AuthenticationRequest request) {
         var user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found with username: " + request.getUsername()));
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
-        if (!authenticated) {
-            throw new RuntimeException("Invalid credentials");
-        }
-        // Generate token here
-        var token = generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(token)
-                .authenticated(true)
-                .build();
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
+            throw new AppException(ErrorCode.UNAUTHENTICATED); // cùng 1 lỗi, tránh lộ username tồn tại
+        return issuePair(user);
     }
 
-    //    TAO TOKEN
-    private String generateToken(User user) {
-        JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
-        JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
-                .issuer("Tri Khoa")
-                .issueTime(new Date())
-                .expirationTime(
-                        new Date(Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()))
-                .claim("scope", buildScope(user))
-                .jwtID(UUID.randomUUID().toString())
-                .build();
-        Payload payload = new Payload(claimsSet.toJSONObject());
-        JWSObject jwsObject = new JWSObject(header, payload);
+    //REFRESH
+    public TokenPair refresh(String refreshToken) {
+        SignedJWT jwt = verifyToken(refreshToken, TokenType.REFRESH);
         try {
-            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
-            return jwsObject.serialize();
-        } catch (JOSEException e) {
-            log.error("Cannot create token", e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    //    BUILD SCOPE
-    private String buildScope(User user) {
-        StringJoiner stringJoiner = new StringJoiner(" ");
-        if (!CollectionUtils.isEmpty(user.getRoles())) {
-            user.getRoles()
-                    .forEach(
-                            role -> {
-                                stringJoiner.add("ROLE_" + role.getName());
-                                if (!CollectionUtils.isEmpty(role.getPermissions()))
-                                    role.getPermissions()
-                                            .forEach(permission -> stringJoiner.add(permission.getCode()));
-                            });
-        }
-        return stringJoiner.toString();
-    }
-
-    private SignedJWT verifyToken(String token, boolean isRefresh) {
-        try {
-            JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-
-            SignedJWT signedJWT = SignedJWT.parse(token);
-
-            Date expiryTime =
-                    isRefresh
-                            ? new Date(
-                            signedJWT.getJWTClaimsSet()
-                                    .getIssueTime()
-                                    .toInstant()
-                                    .plus(REFRESH_DURATION, ChronoUnit.SECONDS)
-                                    .toEpochMilli())
-                            : signedJWT.getJWTClaimsSet().getExpirationTime();
-
-            boolean verified = signedJWT.verify(verifier);
-
-            if (!verified || !expiryTime.after(new Date())) {
-                throw new AppException(ErrorCode.UNAUTHENTICATED);
-            }
-
-            if (invalidatedRepository.existsById(
-                    signedJWT.getJWTClaimsSet().getJWTID())) {
-                throw new AppException(ErrorCode.UNAUTHENTICATED);
-            }
-
-            return signedJWT;
-
-        } catch (ParseException | JOSEException e) {
+            blacklist(jwt); // huỷ refresh token cũ
+            var user = userRepository.findByUsername(jwt.getJWTClaimsSet().getSubject())
+                    .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+            // TODO: nếu User có status (UserStatus) bị khoá thì chặn ở đây
+            return issuePair(user);
+        } catch (ParseException e) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
     }
 
+    //LOGOUT
+    public void logOut(String accessToken, String refreshToken) {
+        invalidateQuietly(accessToken, TokenType.ACCESS);
+        invalidateQuietly(refreshToken, TokenType.REFRESH);
+    }
 
-    public void logOut(LogOutRequest request){
+    //INTROSPECT
+    public IntrospectResponse introspect(IntrospectRequest request) {
+        boolean valid = true;
         try {
-            var signToken = verifyToken(request.getToken(), true);
-            String jit = signToken.getJWTClaimsSet().getJWTID();
-            Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
-
-            InvalidatedToken invalidatedToken =
-                    InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
-            invalidatedRepository.save(invalidatedToken);
+            verifyToken(request.getToken(), TokenType.ACCESS);
         } catch (AppException e) {
-            log.info("TOKEN ALREADY EXPIRED");
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+            valid = false;
+        }
+        return IntrospectResponse.builder().valid(valid).build();
+    }
+
+    // ================= nội bộ =================
+    private TokenPair issuePair(User user) {
+        return new TokenPair(
+                generateToken(user, TokenType.ACCESS),
+                generateToken(user, TokenType.REFRESH));
+    }
+
+    private String generateToken(User user, TokenType type) {
+        boolean isAccess = type == TokenType.ACCESS;
+        long ttl = isAccess ? ACCESS_DURATION : REFRESH_DURATION;
+
+        JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder()
+                .subject(user.getUsername())
+                .issuer("Tri Khoa")
+                .issueTime(new Date())
+                .expirationTime(new Date(Instant.now().plus(ttl, ChronoUnit.SECONDS).toEpochMilli()))
+                .jwtID(UUID.randomUUID().toString())
+                .claim("type", type.name());
+//        access mang quyen, refresh khong mang quyen(doc lai trong db)
+        if (isAccess) claims.claim("scope", buildScope(user));
+
+        JWSObject jws = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload(claims.build().toJSONObject()));
+        try {
+            jws.sign(new MACSigner(keyOf(type).getBytes()));
+            return jws.serialize();
+        } catch (JOSEException e) {
+            log.error("Cannot create token", e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
-    //    KIEM TRA JWT CON HOP LE KHONG
-    public IntrospectResponse introspect(IntrospectRequest request)
-            throws JOSEException, ParseException {
-        var token = request.getToken();
-        boolean inValid = true;
+    private SignedJWT verifyToken(String token, TokenType expected) {
         try {
-            verifyToken(token, false);
-        } catch (AppException e) {
-            inValid = false;
+            SignedJWT jwt = SignedJWT.parse(token);
+            if (!jwt.verify(new MACVerifier(keyOf(expected).getBytes()))) {
+                log.warn("verifyToken[{}]: chu ky khong khop (sai key hoac token gia)", expected);
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+
+            JWTClaimsSet c = jwt.getJWTClaimsSet();
+            if (!expected.name().equals(c.getStringClaim("type"))) {
+                log.warn("verifyToken[{}]: sai loai token, claim type={}", expected, c.getStringClaim("type"));
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+            if (c.getExpirationTime() == null || !c.getExpirationTime().after(new Date())) {
+                log.warn("verifyToken[{}]: het han luc {}", expected, c.getExpirationTime());
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+            if (invalidatedRepository.existsById(c.getJWTID())) {
+                log.warn("verifyToken[{}]: token da bi huy (jti={})", expected, c.getJWTID());
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+            return jwt;
+        } catch (ParseException | JOSEException | NullPointerException e) {
+            log.error("verifyToken[{}]: loi khi parse/verify - {}", expected, e.getMessage(), e);
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        return IntrospectResponse.builder().valid(inValid).build();
+    }
+    private void blacklist(SignedJWT jwt) throws ParseException {
+        var c = jwt.getJWTClaimsSet();
+        invalidatedRepository.save(InvalidatedToken.builder().id(c.getJWTID()).expiryTime(c.getExpirationTime()).build());
     }
 
-    //    REFRESH TOKEN
-    public AuthenticationResponse refreshToken(RefreshRequest request)
-            throws ParseException, JOSEException {
-        var signJWT = verifyToken(request.getToken(), true);
-        var jit = signJWT.getJWTClaimsSet().getJWTID();
-        var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
-
-        //        CHO VAO BLACK LIST
-        InvalidatedToken invalidatedToken =
-                InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
-        invalidatedRepository.save(invalidatedToken);
-
-        var username = signJWT.getJWTClaimsSet().getSubject();
-        //        TAO TOKEN MOI
-        var user =
-                userRepository
-                        .findByUsername(username)
-                        .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-        var token = generateToken(user);
-
-        return AuthenticationResponse.builder().token(token).authenticated(true).build();
+    private void invalidateQuietly(String token, TokenType type) {
+        if (token == null || token.isBlank()) return;
+        try {
+            blacklist(verifyToken(token, type));
+        } catch (AppException | ParseException e) {
+            log.info("{} token already invalid/expired", type);
+        }
     }
+
+    private String keyOf(TokenType t) { return t == TokenType.ACCESS ? ACCESS_KEY : REFRESH_KEY; }
+
+    private String buildScope(User user) {
+        StringJoiner sj = new StringJoiner(" ");
+        if (!CollectionUtils.isEmpty(user.getRoles())) {
+            user.getRoles().forEach(role -> {
+                sj.add("ROLE_" + role.getName());
+                if (!CollectionUtils.isEmpty(role.getPermissions()))
+                    role.getPermissions().forEach(p -> sj.add(p.getCode()));
+            });
+        }
+        return sj.toString();
+    }
+
+    public record TokenPair(String accessToken, String refreshToken) {}
 }

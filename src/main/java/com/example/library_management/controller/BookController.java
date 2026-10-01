@@ -6,6 +6,9 @@ import com.example.library_management.dto.response.BookResponse;
 import com.example.library_management.service.BookService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,10 +30,10 @@ public class BookController {
     }
 
     @GetMapping
-//    @PreAuthorize("hasAuthority('book:read')")
-    public ApiResponse<List<BookResponse>> getAllBooks() {
-        return ApiResponse.<List<BookResponse>>builder()
-                .result(bookService.getAllBooks())
+    public ApiResponse<Page<BookResponse>> getAllBooks(
+            @PageableDefault(size = 10, sort = "title") Pageable pageable) {
+        return ApiResponse.<Page<BookResponse>>builder()
+                .result(bookService.getAllBooks(pageable))
                 .build();
     }
 
@@ -61,10 +64,12 @@ public class BookController {
 //    SEARCH
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('book:read')")
-    public ApiResponse<List<BookResponse>> searchBooks(
-            @RequestParam(required = false) String keyword) {
-        return ApiResponse.<List<BookResponse>>builder()
-                .result(bookService.searchBooks(keyword))
+    public ApiResponse<Page<BookResponse>> searchBooks(
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 10, sort = "title") Pageable pageable) {
+
+        return ApiResponse.<Page<BookResponse>>builder()
+                .result(bookService.searchBooks(keyword, pageable))
                 .build();
     }
 }

@@ -5,6 +5,7 @@ import com.example.library_management.dto.response.UserResponse;
 import com.example.library_management.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class AdminController {
     AdminService adminService;
+
+    @PreAuthorize("hasAuthority('book:update')")
     @PostMapping("/librarians/{username}")
     public ApiResponse<UserResponse> addLibrarian(@PathVariable String username) {
         return ApiResponse.<UserResponse>builder()
