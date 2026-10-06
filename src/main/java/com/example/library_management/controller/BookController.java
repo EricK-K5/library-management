@@ -60,16 +60,17 @@ public class BookController {
         bookService.deleteBook(id);
         return ApiResponse.<Void>builder().build();
     }
-
-//    SEARCH
+    
+//    SEARCH BY CATEGORY
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<Page<BookResponse>> searchBooks(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
             @PageableDefault(size = 10, sort = "title") Pageable pageable) {
 
         return ApiResponse.<Page<BookResponse>>builder()
-                .result(bookService.searchBooks(keyword, pageable))
+                .result(bookService.searchBooks(keyword, categoryId, pageable))
                 .build();
     }
 }

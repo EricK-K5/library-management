@@ -8,6 +8,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashSet;
@@ -44,7 +46,7 @@ public class User {
     String address;
 
     @Column
-    Date dob;
+    LocalDate dob;
 
     @Column(name = "avatar_url", length = 255)
     String avatarUrl;

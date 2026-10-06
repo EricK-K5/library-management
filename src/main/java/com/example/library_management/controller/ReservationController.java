@@ -47,15 +47,6 @@ public class ReservationController {
                 .build();
     }
 
-    // LIBRARIAN/ADMIN duyet thu cong (bi chan neu khong phai dau hang doi)
-//    @PutMapping("/{id}/accept")
-//    @PreAuthorize("hasAuthority('reservation:manage')")
-//    public ApiResponse<ReservationResponse> acceptReservation(@PathVariable Long id) {
-//        return ApiResponse.<ReservationResponse>builder()
-//                .result(reservationService.acceptReservationManually(id))
-//                .build();
-//    }
-
     // Danh sach dat sach cua chinh minh (MEMBER)
     @GetMapping("/my")
     @PreAuthorize("hasAuthority('reservation:read')")

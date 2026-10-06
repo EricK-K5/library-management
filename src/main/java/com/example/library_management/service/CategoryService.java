@@ -10,6 +10,7 @@ import com.example.library_management.mapper.CategoryMapper;
 import com.example.library_management.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll()
+        return categoryRepository.findAll(Sort.by(Sort.Order.asc("name").ignoreCase()))
                 .stream()
                 .map(categoryMapper::toCategoryResponse)
                 .toList();

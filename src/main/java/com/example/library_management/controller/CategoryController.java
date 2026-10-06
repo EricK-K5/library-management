@@ -29,7 +29,6 @@ public class CategoryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<List<CategoryResponse>> getAllCategories() {
         return ApiResponse.<List<CategoryResponse>>builder()
                 .result(categoryService.getAllCategories())
@@ -37,7 +36,6 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {
         return ApiResponse.<CategoryResponse>builder()
                 .result(categoryService.getCategoryById(id))

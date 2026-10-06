@@ -53,7 +53,7 @@ public class AuthenticationService {
         var user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
-            throw new AppException(ErrorCode.UNAUTHENTICATED); // cùng 1 lỗi, tránh lộ username tồn tại
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         return issuePair(user);
     }
 

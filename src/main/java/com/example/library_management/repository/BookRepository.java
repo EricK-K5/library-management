@@ -39,4 +39,18 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
             """)
     Page<Book> searchBooks(@Param("keyword") String keyword, Pageable pageable);
+
+//    SEARCH BOOK BY CATEGORY
+@Query("""
+        SELECT b FROM Book b
+        WHERE b.category.id = :categoryId
+          AND (
+                :keyword = ''
+             OR LOWER(b.title)  LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(b.author) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+        """)
+Page<Book> searchBooksByCategory(@Param("categoryId") Long categoryId,
+                                 @Param("keyword") String keyword,
+                                 Pageable pageable);
 }

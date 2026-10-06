@@ -194,4 +194,22 @@ public class BookService {
                         book.getId()
                 ));
     }
+
+//    SEARCH BOOK BY CATEGORIES
+    @Transactional(readOnly = true)
+    public Page<BookResponse> searchBooks(String keyword, Long categoryId, Pageable pageable) {
+
+        if (categoryId == null) {
+            // hành vi cũ, giữ nguyên
+            if (!StringUtils.hasText(keyword)) {
+                return getAllBooks(pageable);
+            }
+            return bookRepository.searchBooks(keyword.trim(), pageable)
+                    .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()));
+        }
+
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : "";
+        return bookRepository.searchBooksByCategory(categoryId, normalizedKeyword, pageable)
+                .map(book -> enrich(bookMapper.toBookResponse(book), book.getId()));
+    }
 }

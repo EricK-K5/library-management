@@ -32,7 +32,7 @@ public class SecurityConfig {
     private static final String[] SWAGGER = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
-    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books"};
+    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books", "/categories", "/categories/**"};
 
     private final CustomJwtDecoder customJwtDecoder;
 
@@ -101,9 +101,4 @@ public class SecurityConfig {
         c.setJwtGrantedAuthoritiesConverter(g);
         return c;
     }
-
-//    @Bean
-//    public PasswordEncoder passwordEncoder() {
-//        return new BCryptPasswordEncoder(10);
-//    }
 }

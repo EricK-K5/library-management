@@ -65,7 +65,10 @@ public class UserService {
     public UserResponse updateUser(String id, UserUpdateRequest request) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
         userMapper.updateUser(user, request);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+//        CHỈ HASH KHI CÓ PASSWORD
+        if (StringUtils.hasText(request.getPassword())) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
         userRepository.save(user);
         return userMapper.toUserResponse(user);
     }
@@ -80,7 +83,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse getMyInfo() {
         User user = findByUsernameOrThrow(getCurrentUsername());
-        return userMapper.toUserResponse(user);          // <<< SỬA: tên method map sang UserResponse
+        return userMapper.toUserResponse(user);
     }
 
     @Transactional
@@ -105,27 +108,24 @@ public class UserService {
             user.setAddress(request.getAddress());
         }
         if (request.getDob() != null) {
-            // <<< SỬA: request.dob là date-time. Nếu entity dùng LocalDate thì đổi thành
-            // user.setDob(request.getDob().toLocalDate());
             user.setDob(request.getDob());
         }
         if (StringUtils.hasText(request.getPassword())) {
-            // Chuỗi rỗng/chỉ có khoảng trắng bị bỏ qua, không ghi đè mật khẩu
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
         User saved = userRepository.save(user);
-        return userMapper.toUserResponse(saved);         // <<< SỬA: tên mapper
+        return userMapper.toUserResponse(saved);
     }
 
-    /**
-     * Lấy username của người đang đăng nhập từ SecurityContext
-     * (với JWT, getName() trả về claim "sub").
-     */
+//    lấy username từ SecurityContext
     public String getCurrentUsername() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null
+//                isAuthenticated = user xác thực hay chưa, nếu chưa thì trả về false
                 || !authentication.isAuthenticated()
+//                Authentication này có phải là anonymous user không, do anonymous token có thể vẫn có isAuthenticated() == true
+//                SPRING SECURITY tạo ra 1 object authentication đặc biệt cho người chưa đăng nhập
                 || authentication instanceof AnonymousAuthenticationToken) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
