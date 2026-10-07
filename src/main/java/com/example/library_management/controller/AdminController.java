@@ -16,13 +16,14 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
     AdminService adminService;
 
-    @PreAuthorize("hasAuthority('book:update')")
+    @PreAuthorize("hasAuthority('role:update')")
     @PostMapping("/librarians/{username}")
     public ApiResponse<UserResponse> addLibrarian(@PathVariable String username) {
         return ApiResponse.<UserResponse>builder()
                 .result(adminService.addLibrarian(username))
                 .build();
     }
+    @PreAuthorize("hasAuthority('role:delete')")
     @DeleteMapping("/librarians/{username}")
     public ApiResponse<UserResponse> removeLibrarian(@PathVariable String username) {
         return ApiResponse.<UserResponse>builder()

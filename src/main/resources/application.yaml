@@ -14,16 +14,33 @@ spring:
             ddl-auto: update
         show-sql: true
 
+    ai:
+        google:
+            genai:
+                api-key: ${GEMINI_API_KEY}
+                chat:
+                    model: gemini-3.5-flash-lite
+
+
+    servlet:
+        multipart:
+            max-file-size: 10MB
+            max-request-size: 10MB
+
 jwt:
     access-key: ${JWT_ACCESS_KEY}
     refresh-key: ${JWT_REFRESH_KEY}
     access-duration: 900 #15 min
     refresh-duration: 604800 #7 day
     cookie:
+#        Gửi qua HTTP only
         secure: false
+#        Chỉ gửi cookie tới cùng domain
         same-site: Strict
+#        Chỉ gửi tới api/auth
         path: /api/auth
 
 app:
     cors:
         allowed-origins: http://localhost:3000,http://localhost:5173
+
