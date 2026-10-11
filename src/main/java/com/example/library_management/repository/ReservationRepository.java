@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +42,32 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByUserIdAndStatusIn(String userId, Collection<ReservationStatus> statuses);
 
-    List<Reservation> findByStatusAndExpiryDateBefore(ReservationStatus status, LocalDate date);
+    // Chi lay id (khong nap entity vao persistence context) - tung reservation se duoc khoa + doc lai khi xu ly
+    @Query("SELECT r.id FROM Reservation r WHERE r.status = :status AND r.expiryDate < :date")
+    List<Long> findIdsByStatusAndExpiryDateBefore(@Param("status") ReservationStatus status,
+                                                  @Param("date") LocalDate date);
+
+    // Cac sach ma user dang xep hang (PENDING), sap xep theo id de khoa Book luon theo 1 thu tu co dinh (tranh deadlock)
+    @Query("""
+            SELECT DISTINCT r.book.id FROM Reservation r
+            WHERE r.user.id = :userId AND r.status = :status
+            ORDER BY r.book.id
+            """)
+    List<Long> findBookIdsByUserIdAndStatus(@Param("userId") String userId,
+                                            @Param("status") ReservationStatus status);
+
+    // Reservation tao truoc moc thoi gian :before (dung de don PENDING qua lau)
+    @Query("SELECT r.id FROM Reservation r WHERE r.status = :status AND r.createdAt < :before")
+    List<Long> findIdsByStatusAndCreatedAtBefore(@Param("status") ReservationStatus status,
+                                                 @Param("before") LocalDateTime before);
+
+    // Lay bookId ma khong nap Reservation, de khoa Book truoc roi moi khoa Reservation (xem ReservationService.lockReservation)
+    @Query("SELECT r.book.id FROM Reservation r WHERE r.id = :id")
+    Optional<Long> findBookIdById(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.id = :id")
+    Optional<Reservation> findByIdForUpdate(@Param("id") Long id);
 
     boolean existsByBookIdAndStatus(Long bookId, ReservationStatus status);
 

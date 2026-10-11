@@ -4,6 +4,8 @@ import com.example.library_management.service.BorrowRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,8 @@ public class BorrowScheduler {
     //  1) BORROWED da qua han -> OVERDUE
     //  2) OVERDUE qua 30 ngay chua tra -> tu dong LOST (tao Fine tre han + Fine den sach)
     // Dung so sanh bat dang thuc nen neu app tat vai ngay thi lan chay sau se bu lai.
+    // Luu y: kiem tra chan muon/dat va danh sach qua han da tinh theo dueDate, nen status OVERDUE o day
+    // chi la du lieu "dong bo" cho bao cao, khong con la nguon su that duy nhat.
     @Scheduled(cron = "0 10 0 * * *")
     public void processOverdueAndLostBooks() {
         int overdue = borrowRecordService.markOverdueRecords();
@@ -33,5 +37,12 @@ public class BorrowScheduler {
                 log.error("Scheduled job: failed to auto-mark borrow record {} as LOST", id, e);
             }
         }
+    }
+
+    // Chay bu ngay khi app khoi dong, phong truong hop app tat qua 00:10. Job idempotent nen chay lai khong sao.
+    @EventListener(ApplicationReadyEvent.class)
+    public void catchUpOnStartup() {
+        log.info("Startup catch-up: processing overdue / lost borrow records");
+        processOverdueAndLostBooks();
     }
 }

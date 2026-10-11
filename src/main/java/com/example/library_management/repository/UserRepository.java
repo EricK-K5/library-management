@@ -2,7 +2,9 @@ package com.example.library_management.repository;
 
 import com.example.library_management.entity.User;
 import com.example.library_management.enums.UserStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +16,11 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
 
     Optional<User> findByEmail(String email);
+
+    // Khoa dong user: cac lan dat sach dong thoi cua CUNG 1 user phai chay tuan tu de kiem tra han muc khong bi vuot
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.username = :username")
+    Optional<User> findByUsernameForUpdate(@Param("username") String username);
 
     boolean existsByUsername(String username);
 

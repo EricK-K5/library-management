@@ -6,6 +6,7 @@ import com.example.library_management.enums.FineStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,8 +25,30 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     List<BorrowRecord> findByUserIdAndStatus(String userId, BorrowStatus status);
 
-    // Đang mượn nhưng quá hạn
-    List<BorrowRecord> findByStatusAndDueDateBefore(BorrowStatus status, LocalDate date);
+    // Danh sach qua han (BORROWED/OVERDUE co dueDate < today), tre lau nhat len dau.
+    // Loc theo dueDate chu khong theo status de dung ngay ca khi scheduler chua kip chay.
+    @Query("""
+            SELECT b FROM BorrowRecord b
+            JOIN FETCH b.user JOIN FETCH b.book
+            WHERE b.status IN :statuses AND b.dueDate < :today
+            ORDER BY b.dueDate ASC
+            """)
+    List<BorrowRecord> findOverdue(@Param("statuses") Collection<BorrowStatus> statuses,
+                                   @Param("today") LocalDate today);
+
+    // Chan muon/dat khi user dang tre han, tinh theo dueDate (khong phu thuoc status da duoc scheduler cap nhat chua)
+    boolean existsByUserIdAndStatusInAndDueDateBefore(String userId, Collection<BorrowStatus> statuses, LocalDate date);
+
+    // Job dem ngay: BORROWED -> OVERDUE bang 1 cau UPDATE.
+    // Neu returnBook/markLost dang giu lock record, UPDATE se cho va doc lai ban moi nhat nen khong ghi de RETURNED/LOST.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE BorrowRecord b SET b.status = :overdue
+            WHERE b.status = :borrowed AND b.dueDate < :today
+            """)
+    int markOverdue(@Param("overdue") BorrowStatus overdue,
+                    @Param("borrowed") BorrowStatus borrowed,
+                    @Param("today") LocalDate today);
 
     // Dung cho job tu dong danh dau LOST
     List<BorrowRecord> findByStatusAndDueDateLessThanEqual(BorrowStatus status, LocalDate date);

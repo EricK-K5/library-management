@@ -8,8 +8,10 @@ import com.example.library_management.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -80,6 +82,45 @@ public class UserController {
     public ApiResponse<UserResponse> updateMyInfo(@RequestBody @Valid UserUpdateRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.updateMyInfo(request))
+                .build();
+    }
+
+    // ===== AVATAR: multipart/form-data, field "file" =====
+
+    // DOI AVATAR CUA CHINH MINH
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<UserResponse> uploadMyAvatar(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.updateMyAvatar(file))
+                .build();
+    }
+
+    // XOA AVATAR CUA CHINH MINH
+    @DeleteMapping("/me/avatar")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<UserResponse> deleteMyAvatar() {
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.deleteMyAvatar())
+                .build();
+    }
+
+    // ADMIN DOI AVATAR CHO USER KHAC
+    @PostMapping(value = "/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('user:update')")
+    public ApiResponse<UserResponse> uploadAvatar(
+            @PathVariable String id, @RequestParam("file") MultipartFile file) {
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.updateAvatar(id, file))
+                .build();
+    }
+
+    // ADMIN XOA AVATAR CUA USER KHAC
+    @DeleteMapping("/{id}/avatar")
+    @PreAuthorize("hasAuthority('user:update')")
+    public ApiResponse<UserResponse> deleteAvatar(@PathVariable String id) {
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.deleteAvatar(id))
                 .build();
     }
 }

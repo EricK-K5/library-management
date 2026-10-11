@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(indexes = @Index(name = "idx_borrow_status_due_date", columnList = "status, due_date"))
 @Getter
 @Setter
 @Builder
@@ -50,6 +51,16 @@ public class BorrowRecord {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by")
     private User processedBy;
+
+    // Thu thu GIAO sach (ghi luc handover). Khong bi ghi de khi tra sach, khac voi processedBy
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issued_by")
+    private User issuedBy;
+
+    // Thu thu NHAN LAI sach (ghi luc tra sach). Null khi chua tra, hoac record cu / mat sach
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "received_by")
+    private User receivedBy;
 
     // Neu luot muon nay den tu 1 reservation da ACCEPTED (mang di lay), null neu la muon truc tiep khong qua dat truoc
     @OneToOne(fetch = FetchType.LAZY)

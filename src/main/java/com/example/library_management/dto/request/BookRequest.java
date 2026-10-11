@@ -36,8 +36,6 @@ public class BookRequest {
     @Size(max = 1000)
     String description;
 
-    String coverImageUrl;
-
     @NotNull(message = "Tong so ban khong duoc de trong")
     @Min(value = 0, message = "Tong so ban phai >= 0")
     Integer totalCopies;

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,7 +30,20 @@ public class MyBorrowRecordResponse {
 
     BorrowStatus status;
 
+    // Tinh luc doc tu dueDate (khong cho scheduler): true neu dang giu sach va da qua han
+    boolean overdue;
+
+    long overdueDays;
+
+    // Tien phat tam tinh neu tra hom nay (Fine that chi tao luc tra / mat sach)
+    BigDecimal estimatedFine;
+
     String processedByUsername;
+
+    // Thu thu giao sach / nhan lai sach (null voi record tao truoc khi co 2 truong nay)
+    String issuedByUsername;
+
+    String receivedByUsername;
 
     String note;
 

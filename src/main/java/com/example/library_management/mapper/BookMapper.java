@@ -15,14 +15,16 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 )
 public interface BookMapper {
 
-//    KHONG MAP CATEGORY
+    //    KHONG MAP CATEGORY
     @Mapping(target = "category", ignore = true)
+    @Mapping(target = "coverImageUrl", ignore = true)
     @Mapping(target = "availableCopies", source = "totalCopies")
     Book toBook(BookRequest request);
 
     BookResponse toBookResponse(Book book);
 
     @Mapping(target = "category", ignore = true)
+    @Mapping(target = "coverImageUrl", ignore = true)
     @Mapping(target = "availableCopies", ignore = true)
     void updateBook(@MappingTarget Book book, BookRequest request);
 }

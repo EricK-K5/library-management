@@ -21,9 +21,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -36,6 +38,8 @@ public class ReservationService {
     // BORROWED + OVERDUE + LOST (chua xu ly xong fine) + reservation dang giu cho/xep hang
     private static final int DEFAULT_BORROW_LIMIT = 5;
     private static final int HOLD_DAYS = 2;
+    // PENDING da xep hang qua so ngay nay ma member VAN khong du dieu kien nhan sach -> tu dong EXPIRED
+    private static final int STALE_PENDING_DAYS = 14;
 
     private static final Set<ReservationStatus> ACTIVE_STATUSES = Set.of(
             ReservationStatus.PENDING, ReservationStatus.ACCEPTED);
@@ -47,16 +51,21 @@ public class ReservationService {
     FineRepository fineRepository;
     ReservationMapper reservationMapper;
 
-    // MEMBER dat sach (online)
-    @Transactional
+    // MEMBER dat sach (online) - day la CACH DUY NHAT de member co sach: con sach thi giu cho (ACCEPTED), het sach thi xep hang (PENDING).
+    // Sau khi duoc giu cho, thu thu xac nhan giao sach (BorrowRecordService.handoverBook) thi moi tao BorrowRecord.
+    // READ_COMMITTED: moi cau lenh doc du lieu moi nhat da commit (MySQL mac dinh REPEATABLE READ se doc "snapshot" cu).
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservationResponse createReservation(ReservationRequest request) {
-        User user = getCurrentUser();
+        // Khoa dong user NGAY DAU: 2 request dat sach dong thoi cua cung 1 member bi xep hang, nen han muc khong the bi vuot
+        User user = lockCurrentUser();
 
         if (fineRepository.existsByUserIdAndStatus(user.getId(), FineStatus.UNPAID)) {
             throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
         }
 
-        if (borrowRecordRepository.existsByUserIdAndStatus(user.getId(), BorrowStatus.OVERDUE)) {
+        // tinh theo dueDate, khong doi scheduler danh dau OVERDUE
+        if (borrowRecordRepository.existsByUserIdAndStatusInAndDueDateBefore(
+                user.getId(), List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now())) {
             throw new AppException(ErrorCode.USER_HAS_OVERDUE_BOOK);
         }
 
@@ -72,12 +81,13 @@ public class ReservationService {
             throw new AppException(ErrorCode.RESERVATION_DUPLICATED);
         }
 
-        long currentBorrowing = borrowRecordRepository.countBorrowSlotsInUse(user.getId());
-        long currentReserving = reservationRepository.countByUserIdAndStatusIn(user.getId(), ACTIVE_STATUSES);
-        int limit = user.getMaxBorrowLimit() != null ? user.getMaxBorrowLimit() : DEFAULT_BORROW_LIMIT;
-        if (currentBorrowing + currentReserving >= limit) {
+        // han muc: dang muon + qua han + mat chua den bu + dang giu cho + dang xep hang <= han muc (mac dinh 5)
+        if (slotsInUse(user) >= limitOf(user)) {
             throw new AppException(ErrorCode.BORROW_LIMIT_EXCEEDED);
         }
+
+        // Day nhung nguoi PENDING da du dieu kien len truoc, de nguoi moi khong chen ngang hang doi
+        promoteFromQueue(book);
 
         Reservation reservation = Reservation.builder()
                 .user(user)
@@ -98,45 +108,42 @@ public class ReservationService {
         return enrichQueuePosition(reservationMapper.toReservationResponse(reservation), reservation);
     }
 
-    // MEMBER tu huy dat sach - chi khi con PENDING (chua giu sach, khong anh huong availableCopies)
+    // MEMBER tu huy dat sach: PENDING (roi hang doi) hoac ACCEPTED (tra lai suat giu cho nguoi ke tiep)
     @Transactional
     public ReservationResponse cancelMyReservation(Long id) {
         User user = getCurrentUser();
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
+        Reservation reservation = lockReservation(id);
 
         if (!reservation.getUser().getId().equals(user.getId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        if (reservation.getStatus() != ReservationStatus.PENDING) {
-            throw new AppException(ErrorCode.RESERVATION_NOT_PENDING);
-        }
-
-        reservation.setStatus(ReservationStatus.CANCELLED);
-        return reservationMapper.toReservationResponse(reservationRepository.save(reservation));
+        return cancelActiveReservation(reservation, null);
     }
 
     // LIBRARIAN/ADMIN huy ho. Neu dang ACCEPTED thi tra lai suat giu + day hang doi.
     @Transactional
     public ReservationResponse cancelReservationByStaff(Long id) {
         User staff = getCurrentUser();
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
+        Reservation reservation = lockReservation(id);
+        return cancelActiveReservation(reservation, staff);
+    }
 
-        if (reservation.getStatus() != ReservationStatus.PENDING
-                && reservation.getStatus() != ReservationStatus.ACCEPTED) {
+    // Reservation da duoc khoa (lockReservation). Chi huy duoc PENDING/ACCEPTED; ACCEPTED -> giai phong suat giu
+    private ReservationResponse cancelActiveReservation(Reservation reservation, User staff) {
+        if (!ACTIVE_STATUSES.contains(reservation.getStatus())) {
             throw new AppException(ErrorCode.RESERVATION_ALREADY_PROCESSED);
         }
 
         boolean wasAccepted = reservation.getStatus() == ReservationStatus.ACCEPTED;
         reservation.setStatus(ReservationStatus.CANCELLED);
-        reservation.setProcessedBy(staff);
+        if (staff != null) {
+            reservation.setProcessedBy(staff);
+        }
         reservationRepository.save(reservation);
 
         if (wasAccepted) {
             releaseAndPromote(reservation.getBook().getId());
         }
-
         return reservationMapper.toReservationResponse(reservation);
     }
 
@@ -167,57 +174,129 @@ public class ReservationService {
 //        return reservationMapper.toReservationResponse(reservationRepository.save(reservation));
 //    }
 
-    // Job dinh ky: quet reservation ACCEPTED da qua expiryDate ma chua den lay -> EXPIRED, roi tu dong day hang doi
+    // Job dinh ky: quet reservation ACCEPTED da qua expiryDate ma chua den lay -> EXPIRED, roi tu dong day hang doi.
+    // Tung reservation duoc khoa va doc lai trang thai: neu thu thu vua giao sach / huy trong luc job chay thi bo qua.
     @Transactional
     public void processExpiredReservations() {
         LocalDate today = LocalDate.now();
-        List<Reservation> expiredList = reservationRepository
-                .findByStatusAndExpiryDateBefore(ReservationStatus.ACCEPTED, today);
+        List<Long> expiredIds = reservationRepository
+                .findIdsByStatusAndExpiryDateBefore(ReservationStatus.ACCEPTED, today);
 
-        for (Reservation reservation : expiredList) {
-            // load lai tung cai trong transaction rieng logic, tranh 1 loi lam hong ca batch thi van tiep tuc duoc it nhat trong cung transaction
+        for (Long id : expiredIds) {
+            Reservation reservation = lockReservation(id);
+            if (reservation.getStatus() != ReservationStatus.ACCEPTED
+                    || reservation.getExpiryDate() == null
+                    || !reservation.getExpiryDate().isBefore(today)) {
+                continue;
+            }
             reservation.setStatus(ReservationStatus.EXPIRED);
             reservationRepository.save(reservation);
             releaseAndPromote(reservation.getBook().getId());
         }
     }
 
-//    Update sach thi tu dong day PENDING -> ACCEPTED neu avaiable ++
+    // Goi khi user vua het vuong ban (tra / mien phat): xet lai hang doi cua moi sach ma user dang PENDING.
+    // Truoc day nguoi nay bi bo qua (canHold = false) nen sach co the dang ranh ma khong ai kich hoat lai.
+    // Duyet theo id sach tang dan, moi sach khoa rieng, de cac giao dich dong thoi khoa Book cung 1 thu tu.
+    @Transactional
+    public void promoteQueuesForUser(String userId) {
+        for (Long bookId : reservationRepository.findBookIdsByUserIdAndStatus(userId, ReservationStatus.PENDING)) {
+            promotePendingQueue(bookId);
+        }
+    }
+
+    // Job dinh ky: PENDING xep hang qua STALE_PENDING_DAYS ngay ma member van khong du dieu kien (con phat / qua han /
+    // vuot han muc) -> EXPIRED de giai phong slot cua ho. Member du dieu kien chi la dang cho het sach thi KHONG bi dung toi.
+    @Transactional
+    public int expireStalePendingReservations() {
+        LocalDateTime before = LocalDateTime.now().minusDays(STALE_PENDING_DAYS);
+        int expired = 0;
+        for (Long id : reservationRepository.findIdsByStatusAndCreatedAtBefore(ReservationStatus.PENDING, before)) {
+            Reservation reservation = lockReservation(id);
+            // doc lai trong lock: co the vua duoc day len ACCEPTED / bi huy, hoac member vua het vuong ban
+            if (reservation.getStatus() != ReservationStatus.PENDING || canHold(reservation.getUser())) {
+                continue;
+            }
+            reservation.setStatus(ReservationStatus.EXPIRED);
+            reservationRepository.save(reservation);
+            expired++;
+        }
+        return expired;
+    }
+
+    // Co them ban sach (BookService tang totalCopies) -> day hang doi PENDING len ACCEPTED neu con suat
     @Transactional
     public void promotePendingQueue(Long bookId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
-
-        while (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
-            List<Reservation> queue = reservationRepository.findQueueForUpdate(bookId, ReservationStatus.PENDING);
-            if (queue.isEmpty()) {
-                break;
-            }
-            Reservation next = queue.get(0);
-            acceptAndHold(next, book, null);
-            reservationRepository.save(next);
-        }
-        applyComputedStatus(book);
-        bookRepository.save(book);
+        promoteFromQueue(book);
     }
 
-    // Giai phong 1 suat sach (vi 1 ACCEPTED vua bi huy/het han) va tu dong day nguoi dau PENDING queue len ACCEPTED
+    // Giai phong 1 suat sach (vi 1 ban vua duoc tra / 1 ACCEPTED vua bi huy hoac het han) va day hang doi
     @Transactional
     public void releaseAndPromote(Long bookId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
         book.setAvailableCopies(book.getAvailableCopies() + 1);
+        promoteFromQueue(book);
+    }
 
-        List<Reservation> queue = reservationRepository.findQueueForUpdate(bookId, ReservationStatus.PENDING);
-        if (!queue.isEmpty()) {
-            Reservation next = queue.get(0);
-            acceptAndHold(next, book, null);
-            reservationRepository.save(next);
-        } else {
-            applyComputedStatus(book);
+    // QUY TAC HANG DOI: duyet PENDING theo thu tu dat, trong khi con sach thi giu cho nguoi DU DIEU KIEN (canHold).
+    // Nguoi chua du dieu kien bi bo qua (van giu nguyen thu tu, van PENDING) de khong khoa sach vo ich 2 ngay.
+    // Book phai duoc khoa truoc khi goi.
+    private void promoteFromQueue(Book book) {
+        if (book.getAvailableCopies() != null && book.getAvailableCopies() > 0) {
+            for (Reservation next : reservationRepository.findQueueForUpdate(book.getId(), ReservationStatus.PENDING)) {
+                if (book.getAvailableCopies() <= 0) {
+                    break;
+                }
+                if (!canHold(next.getUser())) {
+                    continue;
+                }
+                acceptAndHold(next, book, null);
+                reservationRepository.save(next);
+            }
         }
+        applyComputedStatus(book);
         bookRepository.save(book);
+    }
+
+    // PENDING van dang chiem 1 slot tu luc dat nen khi len ACCEPTED tong slot khong tang; chi can kiem tra
+    // user khong con no phat / sach qua han va tong slot khong vuot han muc (vi du admin vua ha han muc).
+    private boolean canHold(User user) {
+        String userId = user.getId();
+        if (fineRepository.existsByUserIdAndStatus(userId, FineStatus.UNPAID)) {
+            return false;
+        }
+        if (borrowRecordRepository.existsByUserIdAndStatusInAndDueDateBefore(
+                userId, List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now())) {
+            return false;
+        }
+        return slotsInUse(user) <= limitOf(user);
+    }
+
+    // Slot dang chiem = BORROWED + OVERDUE + LOST (con fine UNPAID) + reservation PENDING/ACCEPTED.
+    // RETURNED / CANCELLED / EXPIRED / FULFILLED khong dem -> tra sach, huy, het han deu tu giai phong slot.
+    private long slotsInUse(User user) {
+        return borrowRecordRepository.countBorrowSlotsInUse(user.getId())
+                + reservationRepository.countByUserIdAndStatusIn(user.getId(), ACTIVE_STATUSES);
+    }
+
+    private int limitOf(User user) {
+        return user.getMaxBorrowLimit() != null ? user.getMaxBorrowLimit() : DEFAULT_BORROW_LIMIT;
+    }
+
+    // Khoa theo thu tu Book -> Reservation (cung thu tu voi promoteFromQueue) de tranh deadlock,
+    // roi doc lai Reservation SAU khi da khoa: trang thai tra ve la trang thai moi nhat (giao sach / huy / het han khong de len nhau).
+    @Transactional
+    public Reservation lockReservation(Long id) {
+        Long bookId = reservationRepository.findBookIdById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
+        bookRepository.findByIdForUpdate(bookId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+        return reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESERVATION_NOT_EXISTED));
     }
 
     // Dat 1 reservation thanh ACCEPTED va tru availableCopies cua book tuong ung (book da duoc lock tu truoc)
@@ -281,6 +360,12 @@ public class ReservationService {
         }
         response.setQueuePosition(position > 0 ? position : null);
         return response;
+    }
+
+    private User lockCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUsernameForUpdate(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
     }
 
     private User getCurrentUser() {

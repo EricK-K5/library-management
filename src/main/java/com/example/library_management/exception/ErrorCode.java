@@ -45,6 +45,7 @@ public enum ErrorCode {
     RESERVATION_NOT_PENDING("Reservation not pending", 5004, HttpStatus.BAD_REQUEST),
     RESERVATION_HAS_ACTIVE_PENDING("Reservation has active pending", 5005, HttpStatus.BAD_REQUEST),
     RESERVATION_NOT_ACCEPTED("Reservation not accepted", 5006, HttpStatus.BAD_REQUEST),
+    RESERVATION_EXPIRED("Reservation hold has expired", 5007, HttpStatus.BAD_REQUEST),
 
     FINE_NOT_UNPAID("Fine is not unpaid", 6000, HttpStatus.BAD_REQUEST),
     FINE_REASON_NOT_ALLOWED("Fine reason is not allowed", 6003, HttpStatus.BAD_REQUEST),
@@ -52,7 +53,12 @@ public enum ErrorCode {
     FINE_NOT_EXISTED("Fine not existed", 6005, HttpStatus.NOT_FOUND),
 
     USER_HAS_OVERDUE_BOOK("User has overdue books", 7001, HttpStatus.BAD_REQUEST),
-    USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST);
+    USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST),
+
+    FILE_EMPTY("File is empty or missing", 8001, HttpStatus.BAD_REQUEST),
+    FILE_TOO_LARGE("File is too large", 8002, HttpStatus.BAD_REQUEST),
+    FILE_TYPE_NOT_SUPPORTED("Only JPG, PNG or WEBP images are allowed", 8003, HttpStatus.BAD_REQUEST),
+    FILE_UPLOAD_FAILED("Could not store file", 8004, HttpStatus.INTERNAL_SERVER_ERROR);
 
 
     ErrorCode(String message, int code, HttpStatus httpStatus) {

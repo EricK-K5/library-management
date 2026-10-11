@@ -8,6 +8,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.Map;
 import java.util.Objects;
@@ -16,7 +18,7 @@ import java.util.Objects;
 public class GlobalException {
     private static final String MIN_ATTRIBUTE = "min";
 
-//    EXCEPTION
+    //    EXCEPTION
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse> handleException(Exception e) {
         log.error("Uncategorized error: ", e);
@@ -25,7 +27,7 @@ public class GlobalException {
         apiResponse.setMessage(ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage());
         return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getHttpStatus()).body(apiResponse);
     }
-//    APP EXCEPTION
+    //    APP EXCEPTION
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
         log.error("Uncategorized error: ", exception);
@@ -36,7 +38,7 @@ public class GlobalException {
         return ResponseEntity.status(errorCode.getHttpStatus()).body(apiResponse);
     }
 
-//    VALID EXCEPTION
+    //    VALID EXCEPTION
     @ExceptionHandler(value =MethodArgumentNotValidException .class)
     ResponseEntity<ApiResponse> handlingException(MethodArgumentNotValidException exception) {
         log.error("Uncategorized error: ", exception);
@@ -56,14 +58,14 @@ public class GlobalException {
         apiResponse.setCode(errorCode.getCode());
         apiResponse.setMessage(
                 Objects.nonNull(attributes)
-                ?mapAttribute(errorCode.getMessage(), attributes)
+                        ?mapAttribute(errorCode.getMessage(), attributes)
                         :errorCode.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus()).body(apiResponse);
-        }
-        private String mapAttribute(String message, Map<String, Object> attribute) {
-            String minValue = String.valueOf(attribute.get(MIN_ATTRIBUTE));
-            return message.replace("{" + MIN_ATTRIBUTE + "}", minValue);
-        }
+    }
+    private String mapAttribute(String message, Map<String, Object> attribute) {
+        String minValue = String.valueOf(attribute.get(MIN_ATTRIBUTE));
+        return message.replace("{" + MIN_ATTRIBUTE + "}", minValue);
+    }
 
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ApiResponse> handlingAccessDeniedException(AccessDeniedException exception) {
@@ -72,5 +74,23 @@ public class GlobalException {
         apiResponse.setCode(ErrorCode.UNAUTHORIZED.getCode());
         apiResponse.setMessage(ErrorCode.UNAUTHORIZED.getMessage());
         return ResponseEntity.status(ErrorCode.UNAUTHORIZED.getHttpStatus()).body(apiResponse);
+    }
+
+    // FILE QUA LON (vuot spring.servlet.multipart.max-file-size)
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiResponse> handlingMaxUploadSize(MaxUploadSizeExceededException exception) {
+        ApiResponse apiResponse = new ApiResponse<>();
+        apiResponse.setCode(ErrorCode.FILE_TOO_LARGE.getCode());
+        apiResponse.setMessage(ErrorCode.FILE_TOO_LARGE.getMessage());
+        return ResponseEntity.status(ErrorCode.FILE_TOO_LARGE.getHttpStatus()).body(apiResponse);
+    }
+
+    // THIEU PART "file" TRONG REQUEST MULTIPART
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    ResponseEntity<ApiResponse> handlingMissingPart(MissingServletRequestPartException exception) {
+        ApiResponse apiResponse = new ApiResponse<>();
+        apiResponse.setCode(ErrorCode.FILE_EMPTY.getCode());
+        apiResponse.setMessage(ErrorCode.FILE_EMPTY.getMessage());
+        return ResponseEntity.status(ErrorCode.FILE_EMPTY.getHttpStatus()).body(apiResponse);
     }
 }

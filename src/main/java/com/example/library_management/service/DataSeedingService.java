@@ -72,7 +72,7 @@ public class DataSeedingService {
         if (memberRole.getPermissions().isEmpty()) {
             memberRole.setPermissions(new HashSet<>(Set.of(
                     bookRead,
-                    borrowRead, borrowCreate, borrowRenew,
+                    borrowRead, borrowRenew,
                     reservationRead, reservationCreate, reservationCancel,
                     fineRead, finePay
             )));

@@ -20,5 +20,8 @@ public class ReservationScheduler {
     public void expireOverdueReservations() {
         log.info("Running scheduled job: expire overdue reservations");
         reservationService.processExpiredReservations();
+
+        int stale = reservationService.expireStalePendingReservations();
+        log.info("Expired {} stale pending reservations", stale);
     }
 }

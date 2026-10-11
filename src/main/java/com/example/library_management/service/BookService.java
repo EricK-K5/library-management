@@ -24,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Set;
@@ -41,6 +42,7 @@ public class BookService {
     UserRepository userRepository;
     BookMapper bookMapper;
     ReservationService reservationService;
+    FileStorageService fileStorageService;
 
     // Gan them so ban dang duoc giu cho nguoi da dat (ACCEPTED)
     private BookResponse enrich(BookResponse response, Long bookId) {
@@ -167,6 +169,37 @@ public class BookService {
         }
 
         bookRepository.delete(book);
+        // Xoa luon anh bia (chi chay sau khi commit thanh cong)
+        fileStorageService.deleteAfterCommit(book.getCoverImageUrl());
+    }
+
+    // UPLOAD / DOI ANH BIA
+    @Transactional
+    public BookResponse updateCover(Long id, MultipartFile file) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+
+        String oldUrl = book.getCoverImageUrl();
+        book.setCoverImageUrl(fileStorageService.store(
+                file, FileStorageService.BOOK_FOLDER, FileStorageService.COVER_MAX_BYTES));
+        Book saved = bookRepository.save(book);
+
+        fileStorageService.deleteAfterCommit(oldUrl);
+        return enrich(bookMapper.toBookResponse(saved), saved.getId());
+    }
+
+    // XOA ANH BIA
+    @Transactional
+    public BookResponse deleteCover(Long id) {
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
+
+        String oldUrl = book.getCoverImageUrl();
+        book.setCoverImageUrl(null);
+        Book saved = bookRepository.save(book);
+
+        fileStorageService.deleteAfterCommit(oldUrl);
+        return enrich(bookMapper.toBookResponse(saved), saved.getId());
     }
 
     // Lay id user hien tai neu da dang nhap hop le, tra ve null neu khong xac dinh duoc (khong throw
@@ -195,7 +228,7 @@ public class BookService {
                 ));
     }
 
-//    SEARCH BOOK BY CATEGORIES
+    //    SEARCH BOOK BY CATEGORIES
     @Transactional(readOnly = true)
     public Page<BookResponse> searchBooks(String keyword, Long categoryId, Pageable pageable) {
 

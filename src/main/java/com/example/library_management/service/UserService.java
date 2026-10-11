@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
 
 import java.util.HashSet;
@@ -33,6 +34,7 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     RoleRepository roleRepository;
+    FileStorageService fileStorageService;
 
     //    CREATE USER
     @Transactional
@@ -78,6 +80,49 @@ public class UserService {
     public void deleteUser(String id) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
         userRepository.delete(user);
+        // Xoa luon anh avatar (chi chay sau khi commit thanh cong)
+        fileStorageService.deleteAfterCommit(user.getAvatarUrl());
+    }
+
+    //    AVATAR CUA CHINH MINH
+    @Transactional
+    public UserResponse updateMyAvatar(MultipartFile file) {
+        return changeAvatar(findByUsernameOrThrow(getCurrentUsername()), file);
+    }
+
+    @Transactional
+    public UserResponse deleteMyAvatar() {
+        return removeAvatar(findByUsernameOrThrow(getCurrentUsername()));
+    }
+
+    //    AVATAR CUA USER KHAC (ADMIN)
+    @Transactional
+    public UserResponse updateAvatar(String id, MultipartFile file) {
+        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
+        return changeAvatar(user, file);
+    }
+
+    @Transactional
+    public UserResponse deleteAvatar(String id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
+        return removeAvatar(user);
+    }
+
+    private UserResponse changeAvatar(User user, MultipartFile file) {
+        String oldUrl = user.getAvatarUrl();
+        user.setAvatarUrl(fileStorageService.store(
+                file, FileStorageService.AVATAR_FOLDER, FileStorageService.AVATAR_MAX_BYTES));
+        User saved = userRepository.save(user);
+        fileStorageService.deleteAfterCommit(oldUrl);
+        return userMapper.toUserResponse(saved);
+    }
+
+    private UserResponse removeAvatar(User user) {
+        String oldUrl = user.getAvatarUrl();
+        user.setAvatarUrl(null);
+        User saved = userRepository.save(user);
+        fileStorageService.deleteAfterCommit(oldUrl);
+        return userMapper.toUserResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -118,7 +163,7 @@ public class UserService {
         return userMapper.toUserResponse(saved);
     }
 
-//    lấy username từ SecurityContext
+    //    lấy username từ SecurityContext
     public String getCurrentUsername() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null

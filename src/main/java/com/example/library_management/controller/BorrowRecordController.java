@@ -1,7 +1,7 @@
 package com.example.library_management.controller;
 
-import com.example.library_management.dto.request.BorrowRecordRequest;
 import com.example.library_management.dto.request.BorrowReturnRequest;
+import com.example.library_management.dto.request.HandoverRequest;
 import com.example.library_management.dto.request.MarkLostRequest;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.BorrowRecordResponse;
@@ -23,12 +23,13 @@ public class BorrowRecordController {
 
     BorrowRecordService borrowRecordService;
 
-    // MEMBER tu muon sach cho chinh minh
-    @PostMapping
-    @PreAuthorize("hasAuthority('borrow:create')")
-    public ApiResponse<BorrowRecordResponse> borrowBook(@Valid @RequestBody BorrowRecordRequest request) {
+    // LIBRARIAN/ADMIN xac nhan giao sach cho 1 reservation da duoc giu cho (ACCEPTED) -> tao BorrowRecord.
+    // Member KHONG tu tao BorrowRecord duoc: chi dat sach qua POST /reservations.
+    @PostMapping("/handover")
+    @PreAuthorize("hasAuthority('borrow:manage')")
+    public ApiResponse<BorrowRecordResponse> handoverBook(@Valid @RequestBody HandoverRequest request) {
         return ApiResponse.<BorrowRecordResponse>builder()
-                .result(borrowRecordService.borrowBook(request))
+                .result(borrowRecordService.handoverBook(request))
                 .build();
     }
 
@@ -57,6 +58,15 @@ public class BorrowRecordController {
     public ApiResponse<List<BorrowRecordResponse>> getAllBorrowRecords() {
         return ApiResponse.<List<BorrowRecordResponse>>builder()
                 .result(borrowRecordService.getAllBorrowRecords())
+                .build();
+    }
+
+    // Danh sach borrow dang qua han (LIBRARIAN/ADMIN), tre lau nhat len dau
+    @GetMapping("/overdue")
+    @PreAuthorize("hasAuthority('borrow:manage')")
+    public ApiResponse<List<BorrowRecordResponse>> getOverdueRecords() {
+        return ApiResponse.<List<BorrowRecordResponse>>builder()
+                .result(borrowRecordService.getOverdueRecords())
                 .build();
     }
 

@@ -33,6 +33,7 @@ public class FineService {
     BorrowRecordRepository borrowRecordRepository;
     UserRepository userRepository;
     FineMapper fineMapper;
+    ReservationService reservationService;
 
     // MEMBER xem phi phat cua chinh minh
     @Transactional(readOnly = true)
@@ -76,7 +77,10 @@ public class FineService {
         fine.setStatus(FineStatus.PAID);
         fine.setPaidDate(LocalDate.now());
         fine.setProcessedBy(staff);
-        return fineMapper.toFineResponse(fineRepository.save(fine));
+        Fine saved = fineRepository.save(fine);
+        // user vua het no -> xet lai hang doi cac sach ho dang PENDING (truoc do bi bo qua vi con phat)
+        reservationService.promoteQueuesForUser(saved.getUser().getId());
+        return fineMapper.toFineResponse(saved);
     }
 
     // Mien phat (ADMIN): UNPAID -> WAIVED, bat buoc ghi ly do
@@ -92,7 +96,9 @@ public class FineService {
         String waiveNote = "Mien: " + request.getReason();
         String merged = StringUtils.hasText(fine.getNote()) ? fine.getNote() + " | " + waiveNote : waiveNote;
         fine.setNote(merged.length() > 255 ? merged.substring(0, 255) : merged);
-        return fineMapper.toFineResponse(fineRepository.save(fine));
+        Fine saved = fineRepository.save(fine);
+        reservationService.promoteQueuesForUser(saved.getUser().getId());
+        return fineMapper.toFineResponse(saved);
     }
 
     // Phat thu cong
