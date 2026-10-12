@@ -32,7 +32,7 @@ public class SecurityConfig {
     private static final String[] SWAGGER = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
-    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books", "/categories", "/categories/**", "/uploads/**"};
+    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books", "/books/search", "/categories", "/categories/**", "/uploads/**"};
 
     private final CustomJwtDecoder customJwtDecoder;
 

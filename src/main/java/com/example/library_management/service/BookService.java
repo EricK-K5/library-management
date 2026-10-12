@@ -111,7 +111,8 @@ public class BookService {
 
     @Transactional
     public BookResponse updateBook(Long id, BookRequest request) {
-        Book book = bookRepository.findById(id)
+        // Khoa dong sach: dat / tra sach cung sua availableCopies, doc khong khoa roi save se ghi de so luong cu
+        Book book = bookRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
         // Neu doi isbn thi kiem tra trung, tru truong hop giu nguyen isbn cu
@@ -176,7 +177,8 @@ public class BookService {
     // UPLOAD / DOI ANH BIA
     @Transactional
     public BookResponse updateCover(Long id, MultipartFile file) {
-        Book book = bookRepository.findById(id)
+        // Khoa dong sach: dat / tra sach cung sua availableCopies, doc khong khoa roi save se ghi de so luong cu
+        Book book = bookRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
         String oldUrl = book.getCoverImageUrl();
@@ -191,7 +193,8 @@ public class BookService {
     // XOA ANH BIA
     @Transactional
     public BookResponse deleteCover(Long id) {
-        Book book = bookRepository.findById(id)
+        // Khoa dong sach: dat / tra sach cung sua availableCopies, doc khong khoa roi save se ghi de so luong cu
+        Book book = bookRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
         String oldUrl = book.getCoverImageUrl();

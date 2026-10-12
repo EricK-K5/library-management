@@ -84,7 +84,7 @@ public class BookController {
 
     //    SEARCH BY CATEGORY
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('book:read')")
+//    @PreAuthorize("hasAuthority('book:read')")
     public ApiResponse<Page<BookResponse>> searchBooks(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
