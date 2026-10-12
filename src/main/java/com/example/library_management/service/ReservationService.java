@@ -19,6 +19,8 @@ import com.example.library_management.repository.ReservationRepository;
 import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -26,8 +28,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -321,26 +327,55 @@ public class ReservationService {
     @Transactional(readOnly = true)
     public List<ReservationResponse> getMyReservations() {
         User user = getCurrentUser();
-        return reservationRepository.findByUserId(user.getId())
-                .stream()
-                .map(r -> enrichQueuePosition(reservationMapper.toReservationResponse(r), r))
-                .toList();
+        return toResponses(reservationRepository.findByUserId(user.getId()));
+    }
+
+    // Phan trang (LIBRARIAN/ADMIN)
+    @Transactional(readOnly = true)
+    public Page<ReservationResponse> getAllReservations(Pageable pageable) {
+        return toPage(reservationRepository.findAll(pageable));
     }
 
     @Transactional(readOnly = true)
-    public List<ReservationResponse> getAllReservations() {
-        return reservationRepository.findAll()
-                .stream()
-                .map(r -> enrichQueuePosition(reservationMapper.toReservationResponse(r), r))
-                .toList();
+    public Page<ReservationResponse> getReservationsByBook(Long bookId, Pageable pageable) {
+        return toPage(reservationRepository.findByBookId(bookId, pageable));
     }
 
-    @Transactional(readOnly = true)
-    public List<ReservationResponse> getReservationsByBook(Long bookId) {
-        return reservationRepository.findByBookId(bookId)
-                .stream()
-                .map(r -> enrichQueuePosition(reservationMapper.toReservationResponse(r), r))
-                .toList();
+    private List<ReservationResponse> toResponses(List<Reservation> reservations) {
+        Map<Long, Integer> positions = queuePositions(reservations);
+        return reservations.stream().map(r -> toResponse(r, positions)).toList();
+    }
+
+    private Page<ReservationResponse> toPage(Page<Reservation> page) {
+        Map<Long, Integer> positions = queuePositions(page.getContent());
+        return page.map(r -> toResponse(r, positions));
+    }
+
+    private ReservationResponse toResponse(Reservation reservation, Map<Long, Integer> positions) {
+        ReservationResponse response = reservationMapper.toReservationResponse(reservation);
+        response.setQueuePosition(positions.get(reservation.getId()));
+        return response;
+    }
+
+    // Vi tri hang doi (1 = ke tiep) cho moi reservation PENDING trong danh sach: dung 1 query chung cho tat ca sach
+    // thay vi 1 query / reservation. Reservation khong PENDING khong co trong map -> queuePosition = null.
+    private Map<Long, Integer> queuePositions(Collection<Reservation> reservations) {
+        Set<Long> bookIds = reservations.stream()
+                .filter(r -> r.getStatus() == ReservationStatus.PENDING)
+                .map(r -> r.getBook().getId())
+                .collect(Collectors.toSet());
+        if (bookIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Integer> positions = new HashMap<>();
+        Map<Long, Integer> countPerBook = new HashMap<>();
+        for (Object[] row : reservationRepository.findQueueRows(bookIds, ReservationStatus.PENDING)) {
+            Long bookId = (Long) row[0];
+            Long reservationId = (Long) row[1];
+            positions.put(reservationId, countPerBook.merge(bookId, 1, Integer::sum));
+        }
+        return positions;
     }
 
     // Tinh vi tri trong hang doi PENDING cua 1 reservation (1 = nguoi ke tiep se duoc len ACCEPTED).

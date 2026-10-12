@@ -7,6 +7,10 @@ import com.example.library_management.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +33,7 @@ public class ReservationController {
                 .build();
     }
 
-    // MEMBER tu huy dat sach cua chinh minh (chi khi con PENDING)
+    // MEMBER tu huy dat sach cua chinh minh (PENDING hoac ACCEPTED)
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAuthority('reservation:cancel')")
     public ApiResponse<ReservationResponse> cancelMyReservation(@PathVariable Long id) {
@@ -56,21 +60,24 @@ public class ReservationController {
                 .build();
     }
 
-    // Danh sach tat ca (LIBRARIAN/ADMIN)
+    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20, moi nhat truoc
     @GetMapping
     @PreAuthorize("hasAuthority('reservation:manage')")
-    public ApiResponse<List<ReservationResponse>> getAllReservations() {
-        return ApiResponse.<List<ReservationResponse>>builder()
-                .result(reservationService.getAllReservations())
+    public ApiResponse<Page<ReservationResponse>> getAllReservations(
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ApiResponse.<Page<ReservationResponse>>builder()
+                .result(reservationService.getAllReservations(pageable))
                 .build();
     }
 
-    // Danh sach dat sach cua 1 quyen sach cu the, xep theo hang doi (LIBRARIAN/ADMIN)
+    // Danh sach dat sach cua 1 quyen sach cu the, phan trang, xep theo thoi gian dat (LIBRARIAN/ADMIN)
     @GetMapping("/book/{bookId}")
     @PreAuthorize("hasAuthority('reservation:manage')")
-    public ApiResponse<List<ReservationResponse>> getReservationsByBook(@PathVariable Long bookId) {
-        return ApiResponse.<List<ReservationResponse>>builder()
-                .result(reservationService.getReservationsByBook(bookId))
+    public ApiResponse<Page<ReservationResponse>> getReservationsByBook(
+            @PathVariable Long bookId,
+            @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
+        return ApiResponse.<Page<ReservationResponse>>builder()
+                .result(reservationService.getReservationsByBook(bookId, pageable))
                 .build();
     }
 }

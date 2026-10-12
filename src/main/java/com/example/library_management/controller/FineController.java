@@ -9,6 +9,10 @@ import com.example.library_management.service.FineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,14 +35,15 @@ public class FineController {
                 .build();
     }
 
-    // LIBRARIAN/ADMIN tra cuu
+    // LIBRARIAN/ADMIN tra cuu, phan trang: ?page=0&size=20&userId=...&status=UNPAID, moi nhat truoc
     @GetMapping
     @PreAuthorize("hasAuthority('fine:manage')")
-    public ApiResponse<List<FineResponse>> getFines(
+    public ApiResponse<Page<FineResponse>> getFines(
             @RequestParam(required = false) String userId,
-            @RequestParam(required = false) FineStatus status) {
-        return ApiResponse.<List<FineResponse>>builder()
-                .result(fineService.getFines(userId, status))
+            @RequestParam(required = false) FineStatus status,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ApiResponse.<Page<FineResponse>>builder()
+                .result(fineService.getFines(userId, status, pageable))
                 .build();
     }
 

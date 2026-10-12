@@ -16,6 +16,8 @@ import com.example.library_management.repository.FineRepository;
 import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,20 +47,20 @@ public class FineService {
                 .toList();
     }
 
-    // LIBRARIAN/ADMIN tra cuu: loc theo userId va/hoac status (deu khong bat buoc)
+    // LIBRARIAN/ADMIN tra cuu, phan trang: loc theo userId va/hoac status (deu khong bat buoc)
     @Transactional(readOnly = true)
-    public List<FineResponse> getFines(String userId, FineStatus status) {
-        List<Fine> fines;
+    public Page<FineResponse> getFines(String userId, FineStatus status, Pageable pageable) {
+        Page<Fine> fines;
         if (StringUtils.hasText(userId) && status != null) {
-            fines = fineRepository.findByUserIdAndStatus(userId, status);
+            fines = fineRepository.findByUserIdAndStatus(userId, status, pageable);
         } else if (StringUtils.hasText(userId)) {
-            fines = fineRepository.findByUserId(userId);
+            fines = fineRepository.findByUserId(userId, pageable);
         } else if (status != null) {
-            fines = fineRepository.findByStatus(status);
+            fines = fineRepository.findByStatus(status, pageable);
         } else {
-            fines = fineRepository.findAll();
+            fines = fineRepository.findAll(pageable);
         }
-        return fines.stream().map(fineMapper::toFineResponse).toList();
+        return fines.map(fineMapper::toFineResponse);
     }
 
     @Transactional(readOnly = true)

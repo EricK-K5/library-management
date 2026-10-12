@@ -3,6 +3,9 @@ package com.example.library_management.repository;
 import com.example.library_management.entity.Reservation;
 import com.example.library_management.enums.ReservationStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +22,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByUserId(String userId);
 
     List<Reservation> findByBookId(Long bookId);
+
+    // Phan trang cho man hinh thu thu; nap san user + book trong cung 1 query (tranh N+1)
+    @EntityGraph(attributePaths = {"user", "book"})
+    Page<Reservation> findByBookId(Long bookId, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user", "book"})
+    Page<Reservation> findAll(Pageable pageable);
+
+    // Hang doi PENDING cua NHIEU sach trong 1 query, chi lay (bookId, reservationId), dung cung thu tu voi findQueueForUpdate.
+    // Dung de tinh queuePosition cho ca 1 trang thay vi 1 query / reservation.
+    @Query("""
+            SELECT r.book.id, r.id FROM Reservation r
+            WHERE r.book.id IN :bookIds AND r.status = :status
+            ORDER BY r.book.id ASC, r.createdAt ASC, r.id ASC
+            """)
+    List<Object[]> findQueueRows(@Param("bookIds") Collection<Long> bookIds,
+                                 @Param("status") ReservationStatus status);
 
     List<Reservation> findByStatus(ReservationStatus status);
 
