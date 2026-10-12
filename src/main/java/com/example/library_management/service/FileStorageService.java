@@ -82,7 +82,21 @@ public class FileStorageService {
             log.error("Cannot store file", e);
             throw new AppException(ErrorCode.FILE_UPLOAD_FAILED);
         }
-        return URL_PREFIX + folder + "/" + filename;
+        String url = URL_PREFIX + folder + "/" + filename;
+
+        // File da ghi ra dia ngay, nhung DB co the rollback sau do (loi o buoc khac trong cung transaction):
+        // khi do xoa file moi de khong thanh file mo coi. (File CU thi deleteAfterCommit lo.)
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) {
+                        delete(url);
+                    }
+                }
+            });
+        }
+        return url;
     }
 
     /**
