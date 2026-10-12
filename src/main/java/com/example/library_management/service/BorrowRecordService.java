@@ -28,6 +28,8 @@ import com.example.library_management.util.OverduePolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -157,13 +159,15 @@ public class BorrowRecordService {
             borrowRecord.setNote(request.getNote());
         }
 
+        // tra tre han -> tu dong tao Fine 5.000 VND/ngay tre (toi da 30 ngay).
+        // PHAI tao truoc khi day hang doi: neu member nay dang xep hang chinh cuon vua tra, phat phai co san
+        // thi canHold moi loai ho ra, khong thi ho duoc giu cho roi bi chan o buoc giao sach.
+        createOverdueFine(borrowRecord, today);
+
         // tra lai 1 ban sach vao kho: uy quyen cho ReservationService (co lock rieng) de vua +1 availableCopies
         // vua tu dong day nguoi dau hang doi PENDING len ACCEPTED neu co. Ham nay tu bao toan trang thai
         // DISCONTINUED, khong tu y "hoi sinh" sach da ngung luu hanh.
         reservationService.releaseAndPromote(borrowRecord.getBook().getId());
-
-        // tra tre han -> tu dong tao Fine 5.000 VND/ngay tre (toi da 30 ngay)
-        createOverdueFine(borrowRecord, today);
 
         return borrowRecordMapper.toBorrowRecordResponse(borrowRecordRepository.save(borrowRecord));
     }
@@ -320,21 +324,17 @@ public class BorrowRecordService {
 
     // DANH SACH TAT CA (LIBRARIAN/ADMIN - borrow:manage)
     @Transactional(readOnly = true)
-    public List<BorrowRecordResponse> getAllBorrowRecords() {
-        return borrowRecordRepository.findAll()
-                .stream()
-                .map(borrowRecordMapper::toBorrowRecordResponse)
-                .toList();
+    public Page<BorrowRecordResponse> getAllBorrowRecords(Pageable pageable) {
+        return borrowRecordRepository.findAll(pageable)
+                .map(borrowRecordMapper::toBorrowRecordResponse);
     }
 
     // DANH SACH QUA HAN (LIBRARIAN/ADMIN - borrow:manage): BORROWED/OVERDUE co dueDate < hom nay, tre lau nhat len dau
     @Transactional(readOnly = true)
-    public List<BorrowRecordResponse> getOverdueRecords() {
+    public Page<BorrowRecordResponse> getOverdueRecords(Pageable pageable) {
         return borrowRecordRepository
-                .findOverdue(List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now())
-                .stream()
-                .map(borrowRecordMapper::toBorrowRecordResponse)
-                .toList();
+                .findOverdue(List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now(), pageable)
+                .map(borrowRecordMapper::toBorrowRecordResponse);
     }
 
     // CHI TIET 1 BORROW RECORD (LIBRARIAN/ADMIN - borrow:manage)

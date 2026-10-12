@@ -4,6 +4,9 @@ import com.example.library_management.entity.BorrowRecord;
 import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.enums.FineStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -27,14 +30,25 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     // Danh sach qua han (BORROWED/OVERDUE co dueDate < today), tre lau nhat len dau.
     // Loc theo dueDate chu khong theo status de dung ngay ca khi scheduler chua kip chay.
-    @Query("""
+    // Phan trang: JOIN FETCH chi cho quan he to-one (user, book) nen phan trang van chay tren DB; countQuery rieng.
+    @Query(value = """
             SELECT b FROM BorrowRecord b
             JOIN FETCH b.user JOIN FETCH b.book
             WHERE b.status IN :statuses AND b.dueDate < :today
             ORDER BY b.dueDate ASC
+            """,
+            countQuery = """
+            SELECT COUNT(b) FROM BorrowRecord b
+            WHERE b.status IN :statuses AND b.dueDate < :today
             """)
-    List<BorrowRecord> findOverdue(@Param("statuses") Collection<BorrowStatus> statuses,
-                                   @Param("today") LocalDate today);
+    Page<BorrowRecord> findOverdue(@Param("statuses") Collection<BorrowStatus> statuses,
+                                   @Param("today") LocalDate today,
+                                   Pageable pageable);
+
+    // findAll co phan trang, nap san user + book trong cung 1 query (tranh N+1)
+    @Override
+    @EntityGraph(attributePaths = {"user", "book"})
+    Page<BorrowRecord> findAll(Pageable pageable);
 
     // Chan muon/dat khi user dang tre han, tinh theo dueDate (khong phu thuoc status da duoc scheduler cap nhat chua)
     boolean existsByUserIdAndStatusInAndDueDateBefore(String userId, Collection<BorrowStatus> statuses, LocalDate date);

@@ -10,6 +10,10 @@ import com.example.library_management.service.BorrowRecordService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,21 +56,22 @@ public class BorrowRecordController {
                 .build();
     }
 
-    // Danh sach tat ca (LIBRARIAN/ADMIN)
+    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20, moi nhat truoc
     @GetMapping
     @PreAuthorize("hasAuthority('borrow:manage')")
-    public ApiResponse<List<BorrowRecordResponse>> getAllBorrowRecords() {
-        return ApiResponse.<List<BorrowRecordResponse>>builder()
-                .result(borrowRecordService.getAllBorrowRecords())
+    public ApiResponse<Page<BorrowRecordResponse>> getAllBorrowRecords(
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ApiResponse.<Page<BorrowRecordResponse>>builder()
+                .result(borrowRecordService.getAllBorrowRecords(pageable))
                 .build();
     }
 
-    // Danh sach borrow dang qua han (LIBRARIAN/ADMIN), tre lau nhat len dau
+    // Danh sach borrow dang qua han (LIBRARIAN/ADMIN), phan trang, tre lau nhat len dau
     @GetMapping("/overdue")
     @PreAuthorize("hasAuthority('borrow:manage')")
-    public ApiResponse<List<BorrowRecordResponse>> getOverdueRecords() {
-        return ApiResponse.<List<BorrowRecordResponse>>builder()
-                .result(borrowRecordService.getOverdueRecords())
+    public ApiResponse<Page<BorrowRecordResponse>> getOverdueRecords(@PageableDefault(size = 20) Pageable pageable) {
+        return ApiResponse.<Page<BorrowRecordResponse>>builder()
+                .result(borrowRecordService.getOverdueRecords(pageable))
                 .build();
     }
 
