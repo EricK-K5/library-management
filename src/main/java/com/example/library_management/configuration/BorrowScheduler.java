@@ -1,6 +1,7 @@
 package com.example.library_management.configuration;
 
 import com.example.library_management.service.BorrowRecordService;
+import com.example.library_management.service.FineService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
@@ -16,30 +17,48 @@ import org.springframework.stereotype.Component;
 public class BorrowScheduler {
 
     BorrowRecordService borrowRecordService;
+    FineService fineService;
 
-    // Chay moi ngay luc 00:10 (sau ReservationScheduler luc 00:05):
-    //  1) BORROWED da qua han -> OVERDUE
-    //  2) OVERDUE qua 30 ngay chua tra -> tu dong LOST (tao Fine tre han + Fine den sach)
-    // Dung so sanh bat dang thuc nen neu app tat vai ngay thi lan chay sau se bu lai.
-    // Luu y: kiem tra chan muon/dat va danh sach qua han da tinh theo dueDate, nen status OVERDUE o day
-    // chi la du lieu "dong bo" cho bao cao, khong con la nguon su that duy nhat.
+    // Chạy mỗi ngày lúc 00:10:
+    // 1. Đánh dấu BORROWED đã quá hạn thành OVERDUE.
+    // 2. Cập nhật Fine quá hạn thông qua FineService.
+    // 3. Tự động đánh dấu LOST cho sách quá hạn đủ 30 ngày.
     @Scheduled(cron = "0 10 0 * * *")
     public void processOverdueAndLostBooks() {
-        int overdue = borrowRecordService.markOverdueRecords();
-        log.info("Scheduled job: marked {} borrow record(s) as OVERDUE", overdue);
 
-        // Moi record 1 transaction rieng (goi qua proxy cua bean khac), 1 record loi khong lam hong ca batch
+        int overdue = borrowRecordService.markOverdueRecords();
+
+        log.info(
+                "Scheduled job: marked {} borrow record(s) as OVERDUE",
+                overdue
+        );
+
+        int refreshed = fineService.refreshOverdueFineEstimates();
+
+        log.info(
+                "Scheduled job: refreshed overdue fines for {} record(s)",
+                refreshed
+        );
+
         for (Long id : borrowRecordService.findLongOverdueRecordIds()) {
             try {
                 borrowRecordService.autoMarkLost(id);
-                log.info("Scheduled job: borrow record {} auto-marked as LOST", id);
+
+                log.info(
+                        "Scheduled job: borrow record {} auto-marked as LOST",
+                        id
+                );
             } catch (Exception e) {
-                log.error("Scheduled job: failed to auto-mark borrow record {} as LOST", id, e);
+                log.error(
+                        "Scheduled job: failed to auto-mark borrow record {} as LOST",
+                        id,
+                        e
+                );
             }
         }
     }
 
-    // Chay bu ngay khi app khoi dong, phong truong hop app tat qua 00:10. Job idempotent nen chay lai khong sao.
+    // Chạy bù khi ứng dụng khởi động.
     @EventListener(ApplicationReadyEvent.class)
     public void catchUpOnStartup() {
         log.info("Startup catch-up: processing overdue / lost borrow records");

@@ -62,7 +62,7 @@ public class BorrowRecord {
     @JoinColumn(name = "received_by")
     private User receivedBy;
 
-    // Neu luot muon nay den tu 1 reservation da ACCEPTED (mang di lay), null neu la muon truc tiep khong qua dat truoc
+    // Neu luot muon nay den tu 1 reservation da ACCEPTED (mang di lay)
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id")
     private Reservation reservation;

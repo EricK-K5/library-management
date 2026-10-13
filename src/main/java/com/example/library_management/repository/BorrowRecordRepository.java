@@ -136,4 +136,9 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
                 BorrowStatus.LOST,
                 FineStatus.UNPAID);
     }
+
+    List<BorrowRecord> findByStatusInAndDueDateBefore(
+            Collection<BorrowStatus> statuses,
+            LocalDate dueDate
+    );
 }
