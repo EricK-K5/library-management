@@ -16,6 +16,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -39,11 +40,16 @@ public class FineController {
     @GetMapping
     @PreAuthorize("hasAuthority('fine:manage')")
     public ApiResponse<Page<FineResponse>> getFines(
-            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) FineStatus status,
-            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(
+                    size = 20,
+                    sort = "id",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable
+    ) {
         return ApiResponse.<Page<FineResponse>>builder()
-                .result(fineService.getFines(userId, status, pageable))
+                .result(fineService.getFines(keyword, status, pageable))
                 .build();
     }
 
@@ -79,6 +85,14 @@ public class FineController {
     public ApiResponse<FineResponse> createFine(@Valid @RequestBody FineCreationRequest request) {
         return ApiResponse.<FineResponse>builder()
                 .result(fineService.createManualFine(request))
+                .build();
+    }
+//    Fine chưa thanh toán
+    @PreAuthorize("hasAuthority('fine:manage')")
+    @GetMapping("/unpaid-total")
+    public ApiResponse<BigDecimal> getTotalUnpaidAmount() {
+        return ApiResponse.<BigDecimal>builder()
+                .result(fineService.getTotalUnpaidAmount())
                 .build();
     }
 }

@@ -35,9 +35,6 @@ public class MyBorrowRecordResponse {
 
     long overdueDays;
 
-    // Tien phat tam tinh neu tra hom nay (Fine that chi tao luc tra / mat sach)
-    BigDecimal estimatedFine;
-
     String processedByUsername;
 
     // Thu thu giao sach / nhan lai sach (null voi record tao truoc khi co 2 truong nay)

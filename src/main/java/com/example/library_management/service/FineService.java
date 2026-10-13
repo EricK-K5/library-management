@@ -22,6 +22,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.example.library_management.entity.Book;
+import com.example.library_management.enums.BorrowStatus;
+import com.example.library_management.util.OverduePolicy;
+
+import java.math.BigDecimal;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -36,6 +41,171 @@ public class FineService {
     UserRepository userRepository;
     FineMapper fineMapper;
     ReservationService reservationService;
+    private static final BigDecimal FINE_PER_DAY =
+            new BigDecimal("5000");
+    private static final int MAX_OVERDUE_FINE_DAYS = 30;
+
+    private static final BigDecimal LOST_PROCESSING_FEE =
+            new BigDecimal("20000");
+
+    private static final BigDecimal DEFAULT_REPLACEMENT_COST =
+            new BigDecimal("100000");
+
+    // Tao hoac cap nhat Fine qua han.
+// Chi FineService duoc tinh so tien phat.
+    @Transactional
+    public void createOrUpdateOverdueFine(
+            BorrowRecord borrowRecord,
+            LocalDate today
+    ) {
+        long lateDays = OverduePolicy.lateDays(
+                borrowRecord.getDueDate(),
+                today
+        );
+
+        if (lateDays <= 0) {
+            return;
+        }
+
+        long chargedDays = Math.min(lateDays, MAX_OVERDUE_FINE_DAYS);
+
+        BigDecimal amount = FINE_PER_DAY.multiply(
+                BigDecimal.valueOf(chargedDays)
+        );
+
+        boolean finalized =
+                borrowRecord.getStatus() == BorrowStatus.RETURNED
+                        || borrowRecord.getStatus() == BorrowStatus.LOST;
+
+        String note = (finalized ? "Tre han " : "Tam tinh: tre han ")
+                + lateDays + " ngay"
+                + (lateDays > chargedDays
+                ? " (tinh toi da " + MAX_OVERDUE_FINE_DAYS + " ngay)"
+                : "");
+
+        saveOrUpdateFine(
+                borrowRecord,
+                FineReason.OVERDUE,
+                amount,
+                today,
+                note
+        );
+    }
+
+    // Tao hoac cap nhat Fine khi sach bi mat.
+    @Transactional
+    public void createOrUpdateLostBookFine(
+            BorrowRecord borrowRecord,
+            Book book,
+            BigDecimal lostAmountOverride,
+            LocalDate today,
+            boolean auto
+    ) {
+        BigDecimal amount;
+        String note;
+
+        if (lostAmountOverride != null) {
+            amount = lostAmountOverride;
+            note = "Mat sach: so tien do thu thu dinh gia";
+        } else {
+            BigDecimal price = book.getPrice() != null
+                    ? book.getPrice()
+                    : DEFAULT_REPLACEMENT_COST;
+
+            amount = price.add(LOST_PROCESSING_FEE);
+
+            note = "Mat sach: gia sach " + price.toPlainString()
+                    + (book.getPrice() == null
+                    ? " (mac dinh, chua nhap gia)"
+                    : "")
+                    + " + phi xu ly "
+                    + LOST_PROCESSING_FEE.toPlainString();
+        }
+
+        if (auto) {
+            note = "Tu dong. " + note;
+        }
+
+        saveOrUpdateFine(
+                borrowRecord,
+                FineReason.LOST_BOOK,
+                amount,
+                today,
+                note
+        );
+    }
+
+    // Scheduler goi moi ngay de cap nhat Fine qua han.
+// Khong tao them Fine cho cac record chua qua han.
+    @Transactional
+    public int refreshOverdueFineEstimates() {
+        LocalDate today = LocalDate.now();
+
+        List<BorrowRecord> records =
+                borrowRecordRepository.findByStatusInAndDueDateBefore(
+                        List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE),
+                        today
+                );
+
+        for (BorrowRecord record : records) {
+            createOrUpdateOverdueFine(record, today);
+        }
+
+        return records.size();
+    }
+
+    // Moi borrow record chi co mot Fine cho moi reason.
+    private void saveOrUpdateFine(
+            BorrowRecord borrowRecord,
+            FineReason reason,
+            BigDecimal amount,
+            LocalDate issuedDate,
+            String note
+    ) {
+        Fine fine = fineRepository
+                .findByBorrowRecordIdAndReason(borrowRecord.getId(), reason)
+                .orElse(null);
+
+        if (fine != null) {
+            if (fine.getStatus() == FineStatus.UNPAID) {
+                fine.setAmount(amount);
+                fine.setNote(truncate(note));
+                fineRepository.save(fine);
+            }
+            return;
+        }
+
+        fine = Fine.builder()
+                .user(borrowRecord.getUser())
+                .borrowRecord(borrowRecord)
+                .amount(amount)
+                .reason(reason)
+                .status(FineStatus.UNPAID)
+                .issuedDate(issuedDate)
+                .note(truncate(note))
+                .build();
+
+        Fine saved = fineRepository.save(fine);
+
+        if (borrowRecord.getFines() != null) {
+            borrowRecord.getFines().add(saved);
+        }
+    }
+
+    private String truncate(String text) {
+        return text != null && text.length() > 255
+                ? text.substring(0, 255)
+                : text;
+    }
+    // Kiểm tra user có khoản phạt chưa thanh toán hay không.
+        @Transactional(readOnly = true)
+        public boolean hasUnpaidFine(String userId) {
+            return fineRepository.existsByUserIdAndStatus(
+                    userId,
+                    FineStatus.UNPAID
+            );
+        }
+
 
     // MEMBER xem phi phat cua chinh minh
     @Transactional(readOnly = true)
@@ -49,18 +219,19 @@ public class FineService {
 
     // LIBRARIAN/ADMIN tra cuu, phan trang: loc theo userId va/hoac status (deu khong bat buoc)
     @Transactional(readOnly = true)
-    public Page<FineResponse> getFines(String userId, FineStatus status, Pageable pageable) {
-        Page<Fine> fines;
-        if (StringUtils.hasText(userId) && status != null) {
-            fines = fineRepository.findByUserIdAndStatus(userId, status, pageable);
-        } else if (StringUtils.hasText(userId)) {
-            fines = fineRepository.findByUserId(userId, pageable);
-        } else if (status != null) {
-            fines = fineRepository.findByStatus(status, pageable);
-        } else {
-            fines = fineRepository.findAll(pageable);
-        }
-        return fines.map(fineMapper::toFineResponse);
+    public Page<FineResponse> getFines(
+            String keyword,
+            FineStatus status,
+            Pageable pageable
+    ) {
+        return fineRepository.searchFines(
+                        StringUtils.hasText(keyword)
+                                ? keyword.trim()
+                                : null,
+                        status,
+                        pageable
+                )
+                .map(fineMapper::toFineResponse);
     }
 
     @Transactional(readOnly = true)
@@ -139,5 +310,10 @@ public class FineService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
+    }
+
+//    Fines chưa thanh toán
+    public BigDecimal getTotalUnpaidAmount() {
+        return fineRepository.sumAmountByStatus(FineStatus.UNPAID);
     }
 }
