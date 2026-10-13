@@ -31,6 +31,31 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     @EntityGraph(attributePaths = {"user", "book"})
     Page<Reservation> findAll(Pageable pageable);
 
+    // Danh sach cho man hinh thu thu, loc tuy chon theo status va keyword (khop username / fullName cua user hoac title cua sach).
+    // keyword da lowercase + boc %...% (hoac null = khong loc), status null = khong loc. Sort lay tu Pageable.
+    // JOIN FETCH chi cho quan he to-one (user, book) nen phan trang van chay tren DB; countQuery rieng.
+    @Query(value = """
+            SELECT r FROM Reservation r
+            JOIN FETCH r.user u JOIN FETCH r.book bk
+            WHERE (:status IS NULL OR r.status = :status)
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
+            """,
+            countQuery = """
+            SELECT COUNT(r) FROM Reservation r
+            JOIN r.user u JOIN r.book bk
+            WHERE (:status IS NULL OR r.status = :status)
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
+            """)
+    Page<Reservation> search(@Param("status") ReservationStatus status,
+                             @Param("keyword") String keyword,
+                             Pageable pageable);
+
     // Hang doi PENDING cua NHIEU sach trong 1 query, chi lay (bookId, reservationId), dung cung thu tu voi findQueueForUpdate.
     // Dung de tinh queuePosition cho ca 1 trang thay vi 1 query / reservation.
     @Query("""

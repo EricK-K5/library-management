@@ -38,6 +38,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -322,19 +323,38 @@ public class BorrowRecordService {
         return text != null && text.length() > 255 ? text.substring(0, 255) : text;
     }
 
-    // DANH SACH TAT CA (LIBRARIAN/ADMIN - borrow:manage)
+    // DANH SACH TAT CA (LIBRARIAN/ADMIN - borrow:manage), loc tuy chon theo status va keyword
+    // status la trang thai luu trong DB (OVERDUE co the tre so voi han tra that, muon biet qua han that dung getOverdueRecords)
     @Transactional(readOnly = true)
-    public Page<BorrowRecordResponse> getAllBorrowRecords(Pageable pageable) {
-        return borrowRecordRepository.findAll(pageable)
+    public Page<BorrowRecordResponse> getAllBorrowRecords(BorrowStatus status, String keyword, Pageable pageable) {
+        return borrowRecordRepository.search(status, toLikePattern(keyword), pageable)
                 .map(borrowRecordMapper::toBorrowRecordResponse);
     }
 
     // DANH SACH QUA HAN (LIBRARIAN/ADMIN - borrow:manage): BORROWED/OVERDUE co dueDate < hom nay, tre lau nhat len dau
     @Transactional(readOnly = true)
-    public Page<BorrowRecordResponse> getOverdueRecords(Pageable pageable) {
+    public Page<BorrowRecordResponse> getOverdueRecords(String keyword, Pageable pageable) {
         return borrowRecordRepository
-                .findOverdue(List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now(), pageable)
+                .findOverdue(List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE), LocalDate.now(),
+                        toLikePattern(keyword), pageable)
                 .map(borrowRecordMapper::toBorrowRecordResponse);
+    }
+
+    // keyword null / rong -> null (khong loc). Con lai: trim, lowercase, escape \ % _ roi boc %...%.
+    // MySQL mac dinh dung dau \ lam ky tu escape cua LIKE nen khong can menh de ESCAPE.
+    private String toLikePattern(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String escaped = trimmed.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     // CHI TIET 1 BORROW RECORD (LIBRARIAN/ADMIN - borrow:manage)

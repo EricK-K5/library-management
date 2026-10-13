@@ -6,6 +6,7 @@ import com.example.library_management.dto.request.MarkLostRequest;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.BorrowRecordResponse;
 import com.example.library_management.dto.response.MyBorrowRecordResponse;
+import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.service.BorrowRecordService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -56,22 +57,28 @@ public class BorrowRecordController {
                 .build();
     }
 
-    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20, moi nhat truoc
+    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20&status=BORROWED&keyword=nguyen, moi nhat truoc
+    // status, keyword tuy chon; keyword khop username / fullName cua user hoac title cua sach
     @GetMapping
     @PreAuthorize("hasAuthority('borrow:manage')")
     public ApiResponse<Page<BorrowRecordResponse>> getAllBorrowRecords(
+            @RequestParam(required = false) BorrowStatus status,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         return ApiResponse.<Page<BorrowRecordResponse>>builder()
-                .result(borrowRecordService.getAllBorrowRecords(pageable))
+                .result(borrowRecordService.getAllBorrowRecords(status, keyword, pageable))
                 .build();
     }
 
     // Danh sach borrow dang qua han (LIBRARIAN/ADMIN), phan trang, tre lau nhat len dau
+    // keyword tuy chon (khop username / fullName / title sach)
     @GetMapping("/overdue")
     @PreAuthorize("hasAuthority('borrow:manage')")
-    public ApiResponse<Page<BorrowRecordResponse>> getOverdueRecords(@PageableDefault(size = 20) Pageable pageable) {
+    public ApiResponse<Page<BorrowRecordResponse>> getOverdueRecords(
+            @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.<Page<BorrowRecordResponse>>builder()
-                .result(borrowRecordService.getOverdueRecords(pageable))
+                .result(borrowRecordService.getOverdueRecords(keyword, pageable))
                 .build();
     }
 

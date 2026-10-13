@@ -30,20 +30,55 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     // Danh sach qua han (BORROWED/OVERDUE co dueDate < today), tre lau nhat len dau.
     // Loc theo dueDate chu khong theo status de dung ngay ca khi scheduler chua kip chay.
+    // keyword (da lowercase + co %...%, hoac null = khong loc) khop username / fullName cua user hoac title cua sach.
     // Phan trang: JOIN FETCH chi cho quan he to-one (user, book) nen phan trang van chay tren DB; countQuery rieng.
     @Query(value = """
             SELECT b FROM BorrowRecord b
-            JOIN FETCH b.user JOIN FETCH b.book
+            JOIN FETCH b.user u JOIN FETCH b.book bk
             WHERE b.status IN :statuses AND b.dueDate < :today
-            ORDER BY b.dueDate ASC
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
+            ORDER BY b.dueDate ASC, b.id ASC
             """,
             countQuery = """
             SELECT COUNT(b) FROM BorrowRecord b
+            JOIN b.user u JOIN b.book bk
             WHERE b.status IN :statuses AND b.dueDate < :today
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
             """)
     Page<BorrowRecord> findOverdue(@Param("statuses") Collection<BorrowStatus> statuses,
                                    @Param("today") LocalDate today,
+                                   @Param("keyword") String keyword,
                                    Pageable pageable);
+
+    // Danh sach tat ca, loc tuy chon theo status (status luu trong DB) va keyword (nhu findOverdue).
+    // status = null / keyword = null thi bo qua dieu kien do. Sort lay tu Pageable (mac dinh id DESC o controller).
+    @Query(value = """
+            SELECT b FROM BorrowRecord b
+            JOIN FETCH b.user u JOIN FETCH b.book bk
+            WHERE (:status IS NULL OR b.status = :status)
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
+            """,
+            countQuery = """
+            SELECT COUNT(b) FROM BorrowRecord b
+            JOIN b.user u JOIN b.book bk
+            WHERE (:status IS NULL OR b.status = :status)
+              AND (:keyword IS NULL
+                   OR LOWER(u.username) LIKE :keyword
+                   OR LOWER(u.fullName) LIKE :keyword
+                   OR LOWER(bk.title) LIKE :keyword)
+            """)
+    Page<BorrowRecord> search(@Param("status") BorrowStatus status,
+                              @Param("keyword") String keyword,
+                              Pageable pageable);
 
     // findAll co phan trang, nap san user + book trong cung 1 query (tranh N+1)
     @Override

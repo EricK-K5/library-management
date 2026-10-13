@@ -3,6 +3,7 @@ package com.example.library_management.controller;
 import com.example.library_management.dto.request.ReservationRequest;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.ReservationResponse;
+import com.example.library_management.enums.ReservationStatus;
 import com.example.library_management.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,13 +61,16 @@ public class ReservationController {
                 .build();
     }
 
-    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20, moi nhat truoc
+    // Danh sach tat ca (LIBRARIAN/ADMIN), phan trang: ?page=0&size=20&status=ACCEPTED&keyword=nguyen, moi nhat truoc
+    // status, keyword tuy chon; keyword khop username / fullName cua user hoac title cua sach
     @GetMapping
     @PreAuthorize("hasAuthority('reservation:manage')")
     public ApiResponse<Page<ReservationResponse>> getAllReservations(
+            @RequestParam(required = false) ReservationStatus status,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         return ApiResponse.<Page<ReservationResponse>>builder()
-                .result(reservationService.getAllReservations(pageable))
+                .result(reservationService.getAllReservations(status, keyword, pageable))
                 .build();
     }
 

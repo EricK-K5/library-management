@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -330,10 +331,27 @@ public class ReservationService {
         return toResponses(reservationRepository.findByUserId(user.getId()));
     }
 
-    // Phan trang (LIBRARIAN/ADMIN)
+    // Phan trang (LIBRARIAN/ADMIN), loc tuy chon theo status va keyword (username / fullName / title sach)
     @Transactional(readOnly = true)
-    public Page<ReservationResponse> getAllReservations(Pageable pageable) {
-        return toPage(reservationRepository.findAll(pageable));
+    public Page<ReservationResponse> getAllReservations(ReservationStatus status, String keyword, Pageable pageable) {
+        return toPage(reservationRepository.search(status, toLikePattern(keyword), pageable));
+    }
+
+    // keyword null / rong -> null (khong loc). Con lai: trim, lowercase, escape \ % _ roi boc %...%.
+    // MySQL mac dinh dung dau \ lam ky tu escape cua LIKE nen khong can menh de ESCAPE.
+    private String toLikePattern(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        String escaped = trimmed.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     @Transactional(readOnly = true)
