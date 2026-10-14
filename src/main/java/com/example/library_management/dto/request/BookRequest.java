@@ -19,6 +19,7 @@ public class BookRequest {
     @Size(max = 255)
     String title;
 
+    @NotBlank(message = "BOOK_ISBN_REQUIRED")
     @Size(max = 20)
     String isbn;
 
