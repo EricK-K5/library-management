@@ -53,13 +53,16 @@ public class BookService {
     //    CREATE BOOK
     @Transactional
     public BookResponse createBook(BookRequest request) {
-        if(StringUtils.hasText(request.getIsbn()) && bookRepository.existsByIsbn(request.getIsbn())) {
+        // @NotBlank ở BookRequest đảm bảo isbn không null/rỗng, ở đây chỉ cần trim
+        String isbn = request.getIsbn().trim();
+        if (bookRepository.existsByIsbn(isbn)) {
             throw new AppException(ErrorCode.BOOK_ISBN_EXISTED);
         }
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
 
         Book book = bookMapper.toBook(request);
+        book.setIsbn(isbn);
         book.setCategory(category);
         book.setStatus(computeStatus(book.getAvailableCopies()));
 
@@ -116,9 +119,8 @@ public class BookService {
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
 
         // Neu doi isbn thi kiem tra trung, tru truong hop giu nguyen isbn cu
-        if (StringUtils.hasText(request.getIsbn())
-                && !request.getIsbn().equals(book.getIsbn())
-                && bookRepository.existsByIsbn(request.getIsbn())) {
+        String isbn = request.getIsbn().trim();
+        if (!isbn.equals(book.getIsbn()) && bookRepository.existsByIsbn(isbn)) {
             throw new AppException(ErrorCode.BOOK_ISBN_EXISTED);
         }
 
@@ -136,6 +138,7 @@ public class BookService {
         int oldAvailableCopies = book.getAvailableCopies();
 
         bookMapper.updateBook(book, request);
+        book.setIsbn(isbn);
         // dieu chinh available theo delta cua total (khong dung mapper vi mapper dang ignore field nay)
         int newAvailableCopies = request.getTotalCopies() - borrowedCopies;
         book.setAvailableCopies(newAvailableCopies);
