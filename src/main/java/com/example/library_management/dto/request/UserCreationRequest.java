@@ -3,10 +3,7 @@ package com.example.library_management.dto.request;
 import com.example.library_management.validator.DobContraint;
 import jakarta.persistence.Column;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,19 +20,24 @@ import java.util.Date;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 
 public class UserCreationRequest {
+    @NotBlank(message = "USERNAME_INVALID")
     @Size(min = 4, message = "USER_INVALID")
     String username;
 
-    @Size(min = 8, message = "PASSWORD_INVALID")
+    @NotBlank(message = "INVALID_PASSWORD")
+    @Size(min = 8, message = "INVALID_PASSWORD")
     String password;
 
+    @NotBlank(message = "FULL_NAME_REQUIRED")
     @Size(max = 50)
     String fullName;
 
-    @Email
+    @NotBlank(message = "EMAIL_REQUIRED")
+    @Email(message = "INVALID_EMAIL")
     String email;
 
-    @Pattern(regexp = "^[0-9]{9,11}$", message = "Số điện thoại không hợp lệ")
+    @NotBlank(message = "PHONE_REQUIRED")
+    @Pattern(regexp = "^$|^[0-9]{9,10}$", message = "INVALID_PHONE")
     String phoneNumber;
 
     String address;

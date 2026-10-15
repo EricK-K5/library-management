@@ -42,6 +42,12 @@ public class UserService {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new AppException(ErrorCode.USERS_EXISTED);
         }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
+        if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+            throw new AppException(ErrorCode.PHONE_EXISTED);
+        }
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         Role role = roleRepository.findByName("MEMBER")
@@ -62,17 +68,56 @@ public class UserService {
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
-    //    UPDATE USER
+//    admin sua
     @Transactional
     public UserResponse updateUser(String id, UserUpdateRequest request) {
-        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
-        userMapper.updateUser(user, request);
-//        CHỈ HASH KHI CÓ PASSWORD
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
+        return applyUpdate(user, request);
+    }
+
+//    user sua
+    @Transactional
+    public UserResponse updateMyInfo(UserUpdateRequest request) {
+        User user = findByUsernameOrThrow(getCurrentUsername());
+        return applyUpdate(user, request);
+    }
+
+    // Ham update dung chung cho ca user va admin
+    private UserResponse applyUpdate(User user, UserUpdateRequest request) {
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        if (request.getEmail() != null) {
+            String email = request.getEmail().trim();
+            if (email.isEmpty()) {
+                throw new AppException(ErrorCode.EMAIL_REQUIRED);
+            }
+            if (userRepository.existsByEmailAndIdNot(email, user.getId())) {
+                throw new AppException(ErrorCode.EMAIL_EXISTED);
+            }
+            user.setEmail(email);
+        }
+        if (request.getPhoneNumber() != null) {
+            String phone = request.getPhoneNumber().trim();
+            if (phone.isEmpty()) {
+                throw new AppException(ErrorCode.PHONE_REQUIRED);
+            }
+            if (userRepository.existsByPhoneNumberAndIdNot(phone, user.getId())) {
+                throw new AppException(ErrorCode.PHONE_EXISTED);
+            }
+            user.setPhoneNumber(phone);
+        }
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+        if (request.getDob() != null) {
+            user.setDob(request.getDob());
+        }
         if (StringUtils.hasText(request.getPassword())) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-        userRepository.save(user);
-        return userMapper.toUserResponse(user);
+        return userMapper.toUserResponse(userRepository.save(user));
     }
 
     //    DELETE USER
@@ -129,38 +174,6 @@ public class UserService {
     public UserResponse getMyInfo() {
         User user = findByUsernameOrThrow(getCurrentUsername());
         return userMapper.toUserResponse(user);
-    }
-
-    @Transactional
-    public UserResponse updateMyInfo(UserUpdateRequest request) {
-        User user = findByUsernameOrThrow(getCurrentUsername());
-
-        if (request.getFullName() != null) {
-            user.setFullName(request.getFullName());
-        }
-        if (request.getEmail() != null) {
-            // <<< TUỲ CHỌN: nếu có existsByEmail, kiểm tra trùng email với người khác
-            // if (!request.getEmail().equalsIgnoreCase(user.getEmail())
-            //         && userRepository.existsByEmail(request.getEmail())) {
-            //     throw new AppException(ErrorCode.EMAIL_EXISTED);
-            // }
-            user.setEmail(request.getEmail());
-        }
-        if (request.getPhoneNumber() != null) {
-            user.setPhoneNumber(request.getPhoneNumber());
-        }
-        if (request.getAddress() != null) {
-            user.setAddress(request.getAddress());
-        }
-        if (request.getDob() != null) {
-            user.setDob(request.getDob());
-        }
-        if (StringUtils.hasText(request.getPassword())) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-        }
-
-        User saved = userRepository.save(user);
-        return userMapper.toUserResponse(saved);
     }
 
     //    lấy username từ SecurityContext

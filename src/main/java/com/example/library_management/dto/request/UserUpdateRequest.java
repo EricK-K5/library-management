@@ -27,10 +27,10 @@ public class UserUpdateRequest {
     @Size(max = 50)
     String fullName;
 
-    @Email
+    @Email(message = "INVALID_EMAIL")
     String email;
 
-    @Pattern(regexp = "^[0-9]{9,11}$", message = "Số điện thoại không hợp lệ")
+    @Pattern(regexp = "^$|^[0-9]{9,10}$", message = "INVALID_PHONE")
     String phoneNumber;
 
     String address;

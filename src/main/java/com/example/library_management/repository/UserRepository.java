@@ -17,6 +17,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
+    boolean existsByEmailAndIdNot(String email, String id);
+    boolean existsByPhoneNumberAndIdNot(String phoneNumber, String id);
+
     // Khoa dong user: cac lan dat sach dong thoi cua CUNG 1 user phai chay tuan tu de kiem tra han muc khong bi vuot
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.username = :username")
@@ -25,6 +28,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+    boolean existsByPhoneNumber(String phoneNumber);
 
     List<User> findByUserStatus(UserStatus userStatus);
 

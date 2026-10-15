@@ -4,6 +4,7 @@ import com.example.library_management.enums.UserStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -26,6 +27,8 @@ public class UserResponse {
     String address;
 
     String avatarUrl;
+
+    LocalDate dob;
 
     UserStatus userStatus = UserStatus.ACTIVE;
 

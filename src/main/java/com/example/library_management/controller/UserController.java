@@ -25,7 +25,7 @@ public class UserController {
 
     // CREATE USER
     @PostMapping
-    public ApiResponse<UserResponse> createUser(@RequestBody UserCreationRequest request) {
+    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.createUser(request))
                 .build();
@@ -68,7 +68,7 @@ public class UserController {
         userService.deleteUser(id);
         return ApiResponse.<Void>builder().build();
     }
-
+    // GET MY INFO
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserResponse> getMyInfo() {
@@ -77,6 +77,7 @@ public class UserController {
                 .build();
     }
 
+//    UPDATE MY INFO
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserResponse> updateMyInfo(@RequestBody @Valid UserUpdateRequest request) {

@@ -18,6 +18,13 @@ public enum ErrorCode {
     INVALID_DOB("Your age must be at least {min}", 1008, HttpStatus.BAD_REQUEST),
     ROLE_NOT_EXISTED("Role not existed", 1009, HttpStatus.BAD_REQUEST),
     USER_NOT_MEMBER("User is not member", 1010, HttpStatus.BAD_REQUEST),
+    EMAIL_REQUIRED("Email is required", 1011, HttpStatus.BAD_REQUEST),
+    PHONE_REQUIRED("Phone number is required", 1012, HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED("Email already in use", 1013, HttpStatus.BAD_REQUEST),
+    PHONE_EXISTED("Phone number already in use", 1014, HttpStatus.BAD_REQUEST),
+    INVALID_EMAIL("Email is invalid", 1015, HttpStatus.BAD_REQUEST),
+    INVALID_PHONE("Phone number must be 9-10 digits", 1016, HttpStatus.BAD_REQUEST),
+    FULL_NAME_REQUIRED("Full name is required", 1017, HttpStatus.BAD_REQUEST),
 
     CATEGORY_EXISTED("Category existed", 2001, HttpStatus.BAD_REQUEST),
     CATEGORY_NOT_EXISTED("Category not existed", 2002, HttpStatus.NOT_FOUND),
@@ -31,6 +38,7 @@ public enum ErrorCode {
     BOOK_DISCONTINUED("Book is discontinued", 3005, HttpStatus.BAD_REQUEST),
     BOOK_HAS_ACTIVE_RESERVATIONS("Book has active reservations", 3006, HttpStatus.BAD_REQUEST),
     TOTAL_COPIES_LESS_THAN_BORROWED("Total copies cannot be less than borrowed copies", 3007, HttpStatus.BAD_REQUEST),
+    BOOK_ISBN_REQUIRED("ISBN is required", 3008, HttpStatus.BAD_REQUEST),
 
     BORROW_RECORD_NOT_EXISTED("Borrow record not existed", 4001, HttpStatus.NOT_FOUND),
     BORROW_LIMIT_EXCEEDED("Borrow limit exceeded", 4002, HttpStatus.BAD_REQUEST),
