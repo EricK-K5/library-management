@@ -4,6 +4,8 @@ import com.example.library_management.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -19,9 +21,25 @@ public class ReservationScheduler {
     @Scheduled(cron = "0 5 0 * * *")
     public void expireOverdueReservations() {
         log.info("Running scheduled job: expire overdue reservations");
-        reservationService.processExpiredReservations();
 
-        int stale = reservationService.expireStalePendingReservations();
-        log.info("Expired {} stale pending reservations", stale);
+        try {
+            reservationService.processExpiredReservations();
+        } catch (Exception e) {
+            log.error("Scheduled job: failed to process expired reservations", e);
+        }
+
+        try {
+            int stale = reservationService.expireStalePendingReservations();
+            log.info("Expired {} stale pending reservations", stale);
+        } catch (Exception e) {
+            log.error("Scheduled job: failed to expire stale pending reservations", e);
+        }
+    }
+
+    // Chay bu khi ung dung khoi dong
+    @EventListener(ApplicationReadyEvent.class)
+    public void catchUpOnStartup() {
+        log.info("Startup catch-up: expiring overdue reservations");
+        expireOverdueReservations();
     }
 }
