@@ -1,10 +1,7 @@
 package com.example.library_management.dto.request;
 
 import com.example.library_management.validator.DobContraint;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,9 +18,10 @@ import java.util.Date;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 
 public class UserUpdateRequest {
-    @Size(min = 8, message = "PASSWORD_INVALID")
+    @Size(min = 8, message = "INVALID_PASSWORD")
     String password;
 
+    @NotBlank(message = "FULL_NAME_REQUIRED")
     @Size(max = 50)
     String fullName;
 
