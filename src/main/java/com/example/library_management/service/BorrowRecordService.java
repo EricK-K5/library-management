@@ -13,6 +13,7 @@ import com.example.library_management.enums.BookStatus;
 import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.enums.FineStatus;
 import com.example.library_management.enums.ReservationStatus;
+import com.example.library_management.event.MailEvents;
 import com.example.library_management.exception.AppException;
 import com.example.library_management.exception.ErrorCode;
 import com.example.library_management.mapper.BorrowRecordMapper;
@@ -21,10 +22,10 @@ import com.example.library_management.repository.BookRepository;
 import com.example.library_management.repository.BorrowRecordRepository;
 import com.example.library_management.repository.ReservationRepository;
 import com.example.library_management.repository.UserRepository;
-import com.example.library_management.service.FineService;
 import com.example.library_management.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -67,8 +68,7 @@ public class BorrowRecordService {
     FineService fineService;
     BorrowRecordMapper borrowRecordMapper;
     MyBorrowRecordMapper myBorrowRecordMapper;
-
-    // ==================== GIAO SÁCH ====================
+    ApplicationEventPublisher eventPublisher;
 
     // Chỉ LIBRARIAN/ADMIN có quyền borrow:manage.
     // Member phải đặt sách thành công trước khi nhân viên xác nhận giao sách.
@@ -140,9 +140,18 @@ public class BorrowRecordService {
                 .reservation(reservation)
                 .build();
 
-        return borrowRecordMapper.toBorrowRecordResponse(
-                borrowRecordRepository.save(borrowRecord)
-        );
+        BorrowRecord saved = borrowRecordRepository.save(borrowRecord);
+
+//        gui mail
+        eventPublisher.publishEvent(new MailEvents.BookBorrowed(
+                member.getEmail(),
+                member.getFullName(),
+                reservation.getBook().getTitle(),
+                saved.getBorrowDate(),
+                saved.getDueDate()
+        ));
+
+        return borrowRecordMapper.toBorrowRecordResponse(saved);
     }
 
     // ==================== TRẢ SÁCH ====================

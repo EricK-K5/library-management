@@ -32,6 +32,19 @@ spring:
             max-file-size: 5MB
             max-request-size: 6MB
 
+    mail:
+        host: smtp.gmail.com
+        port: 587
+        username: ${EMAIL_USERNAME}
+        password: ${EMAIL_PASSWORD}
+        default-encoding: UTF-8
+        properties:
+            mail:
+                smtp:
+                    auth: true
+                    starttls:
+                        enable: true
+
 jwt:
     access-key: ${JWT_ACCESS_KEY}
     refresh-key: ${JWT_REFRESH_KEY}
@@ -46,8 +59,13 @@ jwt:
         path: /api/auth
 
 app:
+    mail:
+        enabled: ${MAIL_ENABLED:true}
+        from: ${EMAIL_USERNAME:}
+
     upload:
         dir: uploads
+
     cors:
         allowed-origins: http://localhost:3000,http://localhost:5173
 

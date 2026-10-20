@@ -81,4 +81,7 @@ public class BorrowRecord {
 
     @Column(name = "lost_date")
     private LocalDate lostDate;
+
+    @Column(name = "last_notified_date")
+    private LocalDate lastNotifiedDate;
 }

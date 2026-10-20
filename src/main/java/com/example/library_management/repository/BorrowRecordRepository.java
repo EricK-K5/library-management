@@ -141,4 +141,27 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
             Collection<BorrowStatus> statuses,
             LocalDate dueDate
     );
+
+    @Query("""
+            SELECT b FROM BorrowRecord b
+                       JOIN FETCH b.user JOIN FETCH b.book
+                       WHERE b.status IN :statuses
+                         AND b.dueDate IN :dueDates
+                         AND (b.lastNotifiedDate IS NULL OR b.lastNotifiedDate < :today)
+                       ORDER BY b.dueDate ASC, b.id ASC
+            """)
+    List<BorrowRecord> findDueSoonToNotify(@Param("statuses") Collection<BorrowStatus> statuses,
+                                           @Param("dueDates") Collection<LocalDate> dueDates,
+                                           @Param("today") LocalDate today);
+
+    @Query("""
+            SELECT b FROM BorrowRecord b
+            JOIN FETCH b.user JOIN FETCH b.book
+            WHERE b.status IN :statuses
+              AND b.dueDate < :today
+              AND (b.lastNotifiedDate IS NULL OR b.lastNotifiedDate < :today)
+            ORDER BY b.dueDate ASC, b.id ASC
+            """)
+    List<BorrowRecord> findOverdueToNotify(@Param("statuses") Collection<BorrowStatus> statuses,
+                                           @Param("today") LocalDate today);
 }

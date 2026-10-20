@@ -9,6 +9,7 @@ import com.example.library_management.enums.BookStatus;
 import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.enums.FineStatus;
 import com.example.library_management.enums.ReservationStatus;
+import com.example.library_management.event.MailEvents;
 import com.example.library_management.exception.AppException;
 import com.example.library_management.exception.ErrorCode;
 import com.example.library_management.mapper.ReservationMapper;
@@ -19,6 +20,7 @@ import com.example.library_management.repository.ReservationRepository;
 import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -57,6 +59,7 @@ public class ReservationService {
     UserRepository userRepository;
     FineRepository fineRepository;
     ReservationMapper reservationMapper;
+    ApplicationEventPublisher eventPublisher;
 
     // MEMBER dat sach (online) - day la CACH DUY NHAT de member co sach: con sach thi giu cho (ACCEPTED), het sach thi xep hang (PENDING).
     // Sau khi duoc giu cho, thu thu xac nhan giao sach (BorrowRecordService.handoverBook) thi moi tao BorrowRecord.
@@ -112,7 +115,14 @@ public class ReservationService {
         }
 
         reservation = reservationRepository.save(reservation);
-        return enrichQueuePosition(reservationMapper.toReservationResponse(reservation), reservation);
+        ReservationResponse response = enrichQueuePosition(reservationMapper.toReservationResponse(reservation), reservation);
+
+        if(reservation.getStatus() == ReservationStatus.PENDING){
+            eventPublisher.publishEvent(new MailEvents.ReservationQueued(
+                    user.getEmail(),user.getFullName(),book.getTitle(),response.getQueuePosition()
+            ));
+        }
+        return response;
     }
 
     // MEMBER tu huy dat sach: PENDING (roi hang doi) hoac ACCEPTED (tra lai suat giu cho nguoi ke tiep)
@@ -315,6 +325,16 @@ public class ReservationService {
         book.setAvailableCopies(book.getAvailableCopies() - 1);
         applyComputedStatus(book);
         bookRepository.save(book);
+
+//        gui mail
+        User holder = reservation.getUser();
+        eventPublisher.publishEvent(new MailEvents.ReservationAccept(
+                holder.getEmail(),
+                holder.getFullName(),
+                book.getTitle(),
+                reservation.getExpiryDate()
+        ));
+
     }
 
     // Khong tu dong "hoi sinh" mot sach da DISCONTINUED chi vi so luong thay doi
