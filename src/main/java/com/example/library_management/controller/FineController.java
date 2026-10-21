@@ -1,101 +1,98 @@
 package com.example.library_management.controller;
 
-import com.example.library_management.configuration.VnpConfig;
+import com.example.library_management.dto.request.FineCreationRequest;
+import com.example.library_management.dto.request.WaiveFineRequest;
 import com.example.library_management.dto.response.ApiResponse;
-import com.example.library_management.dto.response.PaymentResponse;
-import com.example.library_management.service.PaymentService;
-import com.example.library_management.service.PaymentService.CallbackResult;
-import jakarta.servlet.http.HttpServletRequest;
+import com.example.library_management.dto.response.FineResponse;
+import com.example.library_management.enums.FineStatus;
+import com.example.library_management.service.FineService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
-@RequestMapping("/payments/vnpay")
+@RequestMapping("/fines")
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
-public class PaymentController {
-    PaymentService paymentService;
-    VnpConfig vnpConfig;
+public class FineController {
 
-    // MEMBER bam "Thanh toan online" -> nhan paymentUrl -> FE redirect sang VNPay
-    @PostMapping("/fines/{fineId}")
-    @PreAuthorize("hasAuthority('fine:pay')")
-    public ApiResponse<PaymentResponse> createPayment(
-            @PathVariable Long fineId,
-            HttpServletRequest request) {
-        return ApiResponse.<PaymentResponse>builder()
-                .result(paymentService.createVnpayPayment(fineId, request))
+    FineService fineService;
+
+    // MEMBER xem phi phat cua chinh minh
+    @GetMapping("/my")
+    @PreAuthorize("hasAuthority('fine:read')")
+    public ApiResponse<List<FineResponse>> getMyFines() {
+        return ApiResponse.<List<FineResponse>>builder()
+                .result(fineService.getMyFines())
                 .build();
     }
 
-    // PUBLIC (SecurityConfig): VNPay redirect TRINH DUYET cua user ve day, khong co JWT.
-    // Xac thuc bang chu ky, xu ly xong redirect sang trang ket qua cua FE.
-    @GetMapping("/return")
-    public ResponseEntity<Void> handleReturn(HttpServletRequest request) {
-        CallbackResult result = paymentService.processCallback(extractVnpParams(request));
-
-        String status;
-        if (result.code() == PaymentService.Code.INVALID_SIGNATURE
-                || result.code() == PaymentService.Code.NOT_FOUND
-                || result.code() == PaymentService.Code.INVALID_AMOUNT) {
-            status = "invalid";
-        } else {
-            status = result.paid() ? "success" : "failed";
-        }
-
-        URI target = UriComponentsBuilder.fromUriString(vnpConfig.frontendResultUrl())
-                .queryParam("status", status)
-                .queryParamIfPresent("fineId", java.util.Optional.ofNullable(result.fineId()))
-                .build()
-                .toUri();
-
-        return ResponseEntity.status(HttpStatus.FOUND).location(target).build();
+    // LIBRARIAN/ADMIN tra cuu, phan trang: ?page=0&size=20&userId=...&status=UNPAID, moi nhat truoc
+    @GetMapping
+    @PreAuthorize("hasAuthority('fine:manage')")
+    public ApiResponse<Page<FineResponse>> getFines(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) FineStatus status,
+            @PageableDefault(
+                    size = 20,
+                    sort = "id",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable
+    ) {
+        return ApiResponse.<Page<FineResponse>>builder()
+                .result(fineService.getFines(keyword, status, pageable))
+                .build();
     }
 
-    // PUBLIC: VNPay goi server-to-server (cau hinh URL trong portal merchant sandbox).
-    // Local can ngrok moi nhan duoc; neu khong co thi Return URL o tren van cap nhat duoc.
-    @GetMapping("/ipn")
-    public Map<String, String> handleIpn(HttpServletRequest request) {
-        CallbackResult result;
-        try {
-            result = paymentService.processCallback(extractVnpParams(request));
-        } catch (Exception e) {
-            return ipn("99", "Unknown error");
-        }
-
-        return switch (result.code()) {
-            case INVALID_SIGNATURE -> ipn("97", "Invalid signature");
-            case NOT_FOUND -> ipn("01", "Order not found");
-            case INVALID_AMOUNT -> ipn("04", "Invalid amount");
-            case ALREADY_CONFIRMED -> ipn("02", "Order already confirmed");
-            case PROCESSED -> ipn("00", "Confirm Success");
-        };
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('fine:manage')")
+    public ApiResponse<FineResponse> getFineById(@PathVariable Long id) {
+        return ApiResponse.<FineResponse>builder()
+                .result(fineService.getFineById(id))
+                .build();
+    }
+    // Thu tien tai quay: UNPAID -> PAID
+    @PutMapping("/{id}/pay")
+    @PreAuthorize("hasAuthority('fine:manage')")
+    public ApiResponse<FineResponse> payFine(@PathVariable Long id) {
+        return ApiResponse.<FineResponse>builder()
+                .result(fineService.payFine(id))
+                .build();
     }
 
-    private static Map<String, String> ipn(String code, String message) {
-        Map<String, String> body = new LinkedHashMap<>();
-        body.put("RspCode", code);
-        body.put("Message", message);
-        return body;
+    // Mien phat - chi ADMIN
+    @PutMapping("/{id}/waive")
+    @PreAuthorize("hasAuthority('fine:waive')")
+    public ApiResponse<FineResponse> waiveFine(
+            @PathVariable Long id, @Valid @RequestBody WaiveFineRequest request) {
+        return ApiResponse.<FineResponse>builder()
+                .result(fineService.waiveFine(id, request))
+                .build();
     }
 
-    private static Map<String, String> extractVnpParams(HttpServletRequest request) {
-        Map<String, String> params = new TreeMap<>();
-        request.getParameterMap().forEach((key, values) -> {
-            if (key.startsWith("vnp_") && values.length > 0) {
-                params.put(key, values[0]);
-            }
-        });
-        return params;
+    // Phat thu cong(Ap dung cho sach bi hu/rach trong luc tra)
+    @PostMapping
+    @PreAuthorize("hasAuthority('fine:create')")
+    public ApiResponse<FineResponse> createFine(@Valid @RequestBody FineCreationRequest request) {
+        return ApiResponse.<FineResponse>builder()
+                .result(fineService.createManualFine(request))
+                .build();
+    }
+    //    Fine chưa thanh toán
+    @PreAuthorize("hasAuthority('fine:manage')")
+    @GetMapping("/unpaid-total")
+    public ApiResponse<BigDecimal> getTotalUnpaidAmount() {
+        return ApiResponse.<BigDecimal>builder()
+                .result(fineService.getTotalUnpaidAmount())
+                .build();
     }
 }
