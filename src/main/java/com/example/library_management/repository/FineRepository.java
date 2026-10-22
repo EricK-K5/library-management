@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,6 +20,11 @@ import java.util.Optional;
 public interface FineRepository extends JpaRepository<Fine, Long> {
 
     List<Fine> findByUserId(String userId);
+
+    // Khoa dong khi xac nhan thanh toan online
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM Fine f WHERE f.id = :id")
+    Optional<Fine> findByIdForUpdate(@Param("id") Long id);
 
     List<Fine> findByStatus(FineStatus status);
 
@@ -74,7 +81,7 @@ public interface FineRepository extends JpaRepository<Fine, Long> {
             Pageable pageable
     );
 
-//    Fines chưa thanh toán
+    //    Fines chưa thanh toán
     @Query("""
         SELECT COALESCE(SUM(f.amount), 0)
         FROM Fine f

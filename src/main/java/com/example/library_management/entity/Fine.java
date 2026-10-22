@@ -1,5 +1,6 @@
 package com.example.library_management.entity;
 
+import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.enums.FineReason;
 import com.example.library_management.enums.FineStatus;
 import jakarta.persistence.*;
@@ -62,4 +63,13 @@ public class Fine {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    // Chi cho thanh toan online khi sach da tra/mat (so tien da chot).
+    // Phat "tam tinh" cua sach dang muon con tang theo ngay, tra truoc roi se bi dong bang so tien.
+    public boolean isPayableOnline() {
+        return status == FineStatus.UNPAID
+                && borrowRecord != null
+                && (borrowRecord.getStatus() == BorrowStatus.RETURNED
+                || borrowRecord.getStatus() == BorrowStatus.LOST);
+    }
 }

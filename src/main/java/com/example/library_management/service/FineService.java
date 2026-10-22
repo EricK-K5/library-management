@@ -198,13 +198,13 @@ public class FineService {
                 : text;
     }
     // Kiểm tra user có khoản phạt chưa thanh toán hay không.
-        @Transactional(readOnly = true)
-        public boolean hasUnpaidFine(String userId) {
-            return fineRepository.existsByUserIdAndStatus(
-                    userId,
-                    FineStatus.UNPAID
-            );
-        }
+    @Transactional(readOnly = true)
+    public boolean hasUnpaidFine(String userId) {
+        return fineRepository.existsByUserIdAndStatus(
+                userId,
+                FineStatus.UNPAID
+        );
+    }
 
 
     // MEMBER xem phi phat cua chinh minh
@@ -254,6 +254,20 @@ public class FineService {
         // user vua het no -> xet lai hang doi cac sach ho dang PENDING (truoc do bi bo qua vi con phat)
         reservationService.promoteQueuesForUser(saved.getUser().getId());
         return fineMapper.toFineResponse(saved);
+    }
+
+    // Thanh toan online thanh cong (VNPay): UNPAID -> PAID. PaymentService goi, da khoa dong Fine.
+    // processedBy de null vi khong co nhan vien nao xu ly; note ghi ma giao dich VNPay.
+    @Transactional
+    public void markPaidOnline(Fine fine, String vnpTransactionNo) {
+        fine.setStatus(FineStatus.PAID);
+        fine.setPaidDate(LocalDate.now());
+        String payNote = "Thanh toan VNPay" + (StringUtils.hasText(vnpTransactionNo) ? " #" + vnpTransactionNo : "");
+        String merged = StringUtils.hasText(fine.getNote()) ? fine.getNote() + " | " + payNote : payNote;
+        fine.setNote(truncate(merged));
+        fineRepository.save(fine);
+        // user het no -> xet lai hang doi dat sach, giong payFine tai quay
+        reservationService.promoteQueuesForUser(fine.getUser().getId());
     }
 
     // Mien phat (ADMIN): UNPAID -> WAIVED, bat buoc ghi ly do
@@ -312,7 +326,7 @@ public class FineService {
                 .orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
     }
 
-//    Fines chưa thanh toán
+    //    Fines chưa thanh toán
     public BigDecimal getTotalUnpaidAmount() {
         return fineRepository.sumAmountByStatus(FineStatus.UNPAID);
     }

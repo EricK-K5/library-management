@@ -38,4 +38,7 @@ public class FineResponse {
     String processedByUsername;
 
     String note;
+
+    // FE dung de hien nut "Thanh toan online"
+    boolean payableOnline;
 }

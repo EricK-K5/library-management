@@ -32,7 +32,9 @@ public class SecurityConfig {
     private static final String[] SWAGGER = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
-    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books", "/books/search", "/categories", "/categories/**", "/uploads/**"};
+    private static final String[] PUBLIC_GET_ENDPOINTS = {"/books", "/books/search", "/categories", "/categories/**", "/uploads/**",
+            // VNPay goi ve (trinh duyet / server VNPay), khong co JWT; xac thuc bang chu ky
+            "/vnpay/return", "/vnpay/ipn"};
 
     private final CustomJwtDecoder customJwtDecoder;
 

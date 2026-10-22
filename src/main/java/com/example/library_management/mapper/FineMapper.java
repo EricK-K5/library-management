@@ -12,5 +12,7 @@ public interface FineMapper {
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "bookTitle", source = "borrowRecord.book.title")
     @Mapping(target = "processedByUsername", source = "processedBy.username")
+//    file mapper cu nen khong nhan ra, tam thoi them dong nay de FE nhan duoc gia tri isPayableOnline = true
+//    @Mapping(target = "payableOnline", expression = "java(fine.isPayableOnline())")
     FineResponse toFineResponse(Fine fine);
 }

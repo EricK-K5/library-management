@@ -59,6 +59,8 @@ public enum ErrorCode {
     FINE_REASON_NOT_ALLOWED("Fine reason is not allowed", 6003, HttpStatus.BAD_REQUEST),
     FINE_ALREADY_EXISTED("Fine already existed", 6004, HttpStatus.BAD_REQUEST),
     FINE_NOT_EXISTED("Fine not existed", 6005, HttpStatus.NOT_FOUND),
+    FINE_NOT_PAYABLE_ONLINE("Fine can only be paid online after the book is returned or lost", 6006, HttpStatus.BAD_REQUEST),
+    PAYMENT_DISABLED("Online payment is disabled", 6007, HttpStatus.SERVICE_UNAVAILABLE),
 
     USER_HAS_OVERDUE_BOOK("User has overdue books", 7001, HttpStatus.BAD_REQUEST),
     USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST),
