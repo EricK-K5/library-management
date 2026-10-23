@@ -2,7 +2,7 @@ package com.example.library_management.configuration;
 
 import com.example.library_management.dto.request.IntrospectRequest;
 import com.example.library_management.service.AuthenticationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,12 +14,12 @@ import org.springframework.stereotype.Component;
 import javax.crypto.spec.SecretKeySpec;
 
 @Component
+@RequiredArgsConstructor
 public class CustomJwtDecoder implements JwtDecoder {
     @Value("${jwt.access-key}")
     private String accessKey;
 
-    @Autowired
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
 
     private volatile NimbusJwtDecoder nimbus;
 

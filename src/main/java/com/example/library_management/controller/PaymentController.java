@@ -69,7 +69,7 @@ public class PaymentController {
         CallbackResult result;
         try {
             result = paymentService.processCallback(extractVnpParams(request));
-        } catch (Exception e) {
+        } catch (Exception exception) {
             return ipn("99", "Unknown error");
         }
 

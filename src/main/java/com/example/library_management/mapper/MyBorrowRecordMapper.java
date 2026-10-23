@@ -2,9 +2,6 @@ package com.example.library_management.mapper;
 
 import com.example.library_management.dto.response.MyBorrowRecordResponse;
 import com.example.library_management.entity.BorrowRecord;
-import com.example.library_management.mapper.BookMapper;
-import com.example.library_management.mapper.FineMapper;
-import com.example.library_management.mapper.UserMapper;
 import com.example.library_management.util.OverduePolicy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
