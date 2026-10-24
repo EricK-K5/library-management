@@ -65,6 +65,8 @@ public enum ErrorCode {
     USER_HAS_OVERDUE_BOOK("User has overdue books", 7001, HttpStatus.BAD_REQUEST),
     USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST),
 
+    PENDING_ACTION_NOT_FOUND("Pending action not found or expired", 9001, HttpStatus.NOT_FOUND),
+
     FILE_EMPTY("File is empty or missing", 8001, HttpStatus.BAD_REQUEST),
     FILE_TOO_LARGE("File is too large", 8002, HttpStatus.BAD_REQUEST),
     FILE_TYPE_NOT_SUPPORTED("Only JPG, PNG or WEBP images are allowed", 8003, HttpStatus.BAD_REQUEST),
