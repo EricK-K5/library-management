@@ -23,7 +23,14 @@ public class EmailService {
 
     public boolean send(String to, String subject, String body){
         if(!enabled){
-            log.info("Mail dang tat");
+            log.info("""
+                To: {}
+                From: {}
+                Subject: {}
+                Body:
+                {}
+                """, to, from, subject, body);
+
             return false;
         }
         if(!StringUtils.hasText(to)){
