@@ -64,6 +64,8 @@ public enum ErrorCode {
 
     USER_HAS_OVERDUE_BOOK("User has overdue books", 7001, HttpStatus.BAD_REQUEST),
     USER_HAS_UNPAID_FINE("User has unpaid fine", 7002, HttpStatus.BAD_REQUEST),
+    USER_HAS_ACTIVE_BORROW("User has borrowed books that are not returned", 7003, HttpStatus.BAD_REQUEST),
+    USER_HAS_ACTIVE_RESERVATION("User has active reservations", 7004, HttpStatus.BAD_REQUEST),
 
     PENDING_ACTION_NOT_FOUND("Pending action not found or expired", 9001, HttpStatus.NOT_FOUND),
 
@@ -73,6 +75,7 @@ public enum ErrorCode {
     FILE_UPLOAD_FAILED("Could not store file", 8004, HttpStatus.INTERNAL_SERVER_ERROR);
 
 
+//    enum chi xay dung ham khoi tao khong tham so nen muon co tham so phai tu tao
     ErrorCode(String message, int code, HttpStatus httpStatus) {
         this.message = message;
         this.code = code;

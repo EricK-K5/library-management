@@ -61,15 +61,18 @@ public class Book {
     @Column(name = "shelf_location", length = 50)
     String shelfLocation;
 
+//    luu enum vao db bang ten, neu khong co van luu duoc nhung ma la dang ordinal(0,1,2)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     BookStatus status = BookStatus.AVAILABLE;
 
+//    mac dinh fetch.eager
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     Category category;
 
+//    mac dinh fetch.lazy
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL)
     @Builder.Default
     Set<BorrowRecord> borrowRecords = new HashSet<>();

@@ -108,6 +108,9 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     // Chan muon/dat khi user con sach qua han chua tra
     boolean existsByUserIdAndStatus(String userId, BorrowStatus status);
 
+    // Chan xoa user khi con sach chua tra (BORROWED/OVERDUE)
+    boolean existsByUserIdAndStatusIn(String userId, Collection<BorrowStatus> statuses);
+
     // Khoa record khi tra / bao mat / tu dong danh dau LOST, tranh scheduler va thu thu xu ly cung luc.
     // Thu tu khoa: BorrowRecord -> Book
     @Lock(LockModeType.PESSIMISTIC_WRITE)

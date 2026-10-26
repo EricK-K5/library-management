@@ -88,6 +88,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByUserIdAndStatusIn(String userId, Collection<ReservationStatus> statuses);
 
+    // Chan xoa user khi con reservation PENDING/ACCEPTED
+    boolean existsByUserIdAndStatusIn(String userId, Collection<ReservationStatus> statuses);
+
     // Chi lay id (khong nap entity vao persistence context) - tung reservation se duoc khoa + doc lai khi xu ly
     @Query("SELECT r.id FROM Reservation r WHERE r.status = :status AND r.expiryDate < :date")
     List<Long> findIdsByStatusAndExpiryDateBefore(@Param("status") ReservationStatus status,
