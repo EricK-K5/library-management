@@ -6,9 +6,15 @@ import com.example.library_management.dto.request.UserUpdateRequest;
 import com.example.library_management.dto.response.UserResponse;
 import com.example.library_management.entity.Role;
 import com.example.library_management.entity.User;
+import com.example.library_management.enums.BorrowStatus;
+import com.example.library_management.enums.FineStatus;
+import com.example.library_management.enums.ReservationStatus;
 import com.example.library_management.exception.AppException;
 import com.example.library_management.exception.ErrorCode;
 import com.example.library_management.mapper.UserMapper;
+import com.example.library_management.repository.BorrowRecordRepository;
+import com.example.library_management.repository.FineRepository;
+import com.example.library_management.repository.ReservationRepository;
 import com.example.library_management.repository.RoleRepository;
 import com.example.library_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +41,9 @@ public class UserService {
     PasswordEncoder passwordEncoder;
     RoleRepository roleRepository;
     FileStorageService fileStorageService;
+    BorrowRecordRepository borrowRecordRepository;
+    ReservationRepository reservationRepository;
+    FineRepository fineRepository;
 
     //    CREATE USER
     @Transactional
@@ -68,7 +77,7 @@ public class UserService {
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
-//    admin sua
+    //    admin sua
     @Transactional
     public UserResponse updateUser(String id, UserUpdateRequest request) {
         User user = userRepository.findById(id)
@@ -76,7 +85,7 @@ public class UserService {
         return applyUpdate(user, request);
     }
 
-//    user sua
+    //    user sua
     @Transactional
     public UserResponse updateMyInfo(UserUpdateRequest request) {
         User user = findByUsernameOrThrow(getCurrentUsername());
@@ -124,6 +133,20 @@ public class UserService {
     @Transactional
     public void deleteUser(String id) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
+
+        // Chan xoa khi user con sach chua tra (dang muon hoac qua han)
+        if (borrowRecordRepository.existsByUserIdAndStatusIn(id, List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE))) {
+            throw new AppException(ErrorCode.USER_HAS_ACTIVE_BORROW);
+        }
+        // Chan xoa khi user con dat truoc dang cho / da duoc giu sach
+        if (reservationRepository.existsByUserIdAndStatusIn(id, List.of(ReservationStatus.PENDING, ReservationStatus.ACCEPTED))) {
+            throw new AppException(ErrorCode.USER_HAS_ACTIVE_RESERVATION);
+        }
+        // Chan xoa khi user con khoan phat chua thanh toan (ke ca phat do lam mat sach)
+        if (fineRepository.existsByUserIdAndStatus(id, FineStatus.UNPAID)) {
+            throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
+        }
+
         userRepository.delete(user);
         // Xoa luon anh avatar (chi chay sau khi commit thanh cong)
         fileStorageService.deleteAfterCommit(user.getAvatarUrl());
@@ -195,4 +218,3 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USERS_NOT_EXISTED));
     }
 }
-
