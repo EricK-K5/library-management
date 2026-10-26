@@ -1,9 +1,9 @@
 package com.example.library_management.enums;
 
 public enum ReservationStatus {
-    PENDING,    // dang cho
+    PENDING,
     ACCEPTED,
-    FULFILLED,  // da duoc cap (chuyen thanh borrowed)
-    CANCELLED,  // nguoi dung huy
-    EXPIRED     // het han
+    FULFILLED,
+    CANCELLED,
+    EXPIRED
 }

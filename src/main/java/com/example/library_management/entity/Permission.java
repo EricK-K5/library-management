@@ -22,14 +22,13 @@ public class Permission {
     Long id;
 
     @Column(nullable = false, unique = true, length = 100)
-    String code; // VD: BOOK_CREATE, BOOK_DELETE, USER_MANAGE, FINE_WAIVE
+    String code;
 
     @Column(length = 255)
     String description;
 
-    // Nhóm quyền theo module để dễ quản lý trên UI
     @Column(length = 50)
-    String module; // VD: BOOK, USER, BORROW, FINE, REPORT
+    String module;
 
     @ManyToMany(mappedBy = "permissions")
     @Builder.Default

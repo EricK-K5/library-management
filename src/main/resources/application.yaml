@@ -60,7 +60,7 @@ jwt:
 
 app:
     mail:
-        enabled: ${MAIL_ENABLED:true}
+        enabled: ${MAIL_ENABLED:false}
         from: ${EMAIL_USERNAME}
 
     upload:

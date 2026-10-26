@@ -69,27 +69,18 @@ public class User {
     LocalDateTime updatedAt;
 
 //    QUAN HE VOI CAC ENTITY KHAC
-
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     Set<BorrowRecord> borrowRecords = new HashSet<>();
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     Set<Reservation> reservations = new HashSet<>();
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     Set<Fine> fines = new HashSet<>();
-
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
+    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",

@@ -42,7 +42,7 @@ public class Reservation {
     @Builder.Default
     ReservationStatus status = ReservationStatus.PENDING;
 
-    // Nguoi (LIBRARIAN/ADMIN) da xu ly accept/cancel thu cong, null neu he thong tu dong accept
+    // null do he thong tu dong accept
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by")
     User processedBy;

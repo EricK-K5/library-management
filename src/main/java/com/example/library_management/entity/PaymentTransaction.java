@@ -57,6 +57,7 @@ public class PaymentTransaction {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+//    tg thanh toan thanh cong
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 }
