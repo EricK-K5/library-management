@@ -20,9 +20,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
-/**
- * Luu anh len disk. DB chi luu duong dan tuong doi dang "/uploads/books/xxx.jpg".
- */
 @Slf4j
 @Service
 public class FileStorageService {
@@ -61,6 +58,7 @@ public class FileStorageService {
         // Dua vao noi dung that (magic bytes), khong tin ten file / content-type FE gui len
         String extension;
         try (InputStream in = file.getInputStream()) {
+//            Doc 12 file de xac dinh dinh dang file
             extension = detectExtension(in.readNBytes(12));
         } catch (IOException e) {
             throw new AppException(ErrorCode.FILE_UPLOAD_FAILED);
@@ -71,6 +69,7 @@ public class FileStorageService {
 
         String filename = UUID.randomUUID() + "." + extension;
         Path target = root.resolve(folder).resolve(filename).normalize();
+//        bat buoc phai nam trong root
         if (!target.startsWith(root)) {
             throw new AppException(ErrorCode.FILE_UPLOAD_FAILED);
         }
@@ -99,9 +98,7 @@ public class FileStorageService {
         return url;
     }
 
-    /**
-     * Xoa file theo URL da luu trong DB. Bo qua neu null / URL ngoai (http...) / ngoai thu muc uploads.
-     */
+
     public void delete(String url) {
         if (!StringUtils.hasText(url) || !url.startsWith(URL_PREFIX)) {
             return;
@@ -116,11 +113,7 @@ public class FileStorageService {
             log.warn("Cannot delete file {}", target, e);
         }
     }
-
-    /**
-     * Xoa file SAU KHI transaction commit thanh cong,
-     * tranh truong hop DB rollback nhung file da bi xoa mat.
-     */
+    
     public void deleteAfterCommit(String url) {
         if (!StringUtils.hasText(url)) {
             return;

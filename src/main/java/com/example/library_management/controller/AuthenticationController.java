@@ -64,8 +64,7 @@ public class AuthenticationController {
 
         String access = (authHeader != null && authHeader.startsWith("Bearer "))
                 ? authHeader.substring(7) : null;
-
-        // Thiếu access token => không thể huỷ nó, báo lỗi thay vì trả 200 giả
+        
         if (access == null || access.isBlank())
             throw new AppException(ErrorCode.UNAUTHENTICATED);
 

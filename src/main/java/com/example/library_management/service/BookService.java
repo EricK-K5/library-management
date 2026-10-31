@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,7 +82,7 @@ public class BookService {
                 .orElseThrow(() -> new AppException(ErrorCode.BOOK_NOT_EXISTED));
         BookResponse response = enrich(bookMapper.toBookResponse(book), book.getId());
 
-        // Gan them tinh trang dat sach cua CHINH nguoi dang xem (dung cho trang chi tiet 1 sach)
+        // Gan them tinh trang dat sach cua chinh nguoi dang xem (dung cho trang chi tiet 1 sach)
         String currentUserId = getCurrentUserId();
         if (currentUserId != null) {
             reservationRepository
@@ -212,7 +213,7 @@ public class BookService {
     // vi day chi la thong tin bo sung, khong bat buoc de xem duoc chi tiet sach)
     private String getCurrentUserId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
             return null;
         }
         return userRepository.findByUsername(authentication.getName())

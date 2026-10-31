@@ -71,6 +71,7 @@ public class UserController {
     }
     // GET MY INFO
     @GetMapping("/me")
+//    chan anonymous
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserResponse> getMyInfo() {
         return ApiResponse.<UserResponse>builder()

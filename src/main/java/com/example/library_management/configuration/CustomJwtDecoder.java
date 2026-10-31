@@ -15,12 +15,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 @Component
 @RequiredArgsConstructor
+//trien khai phuong thuc decode theo jwt
 public class CustomJwtDecoder implements JwtDecoder {
     @Value("${jwt.access-key}")
     private String accessKey;
 
     private final AuthenticationService authenticationService;
 
+//    class giai ma va xac minh jwt
     private volatile NimbusJwtDecoder nimbus;
 
     @Override

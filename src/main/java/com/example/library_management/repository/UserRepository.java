@@ -17,6 +17,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
+//    loai bo user co id = id trong khi kiem tra email va phoneNumber
     boolean existsByEmailAndIdNot(String email, String id);
     boolean existsByPhoneNumberAndIdNot(String phoneNumber, String id);
 

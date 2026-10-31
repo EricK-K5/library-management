@@ -61,10 +61,10 @@ public class AuthenticationService {
     public TokenPair refresh(String refreshToken) {
         SignedJWT jwt = verifyToken(refreshToken, TokenType.REFRESH);
         try {
-            blacklist(jwt); // huỷ refresh token cũ
+            blacklist(jwt);
             var user = userRepository.findByUsername(jwt.getJWTClaimsSet().getSubject())
                     .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-            // TODO: nếu User có status (UserStatus) bị khoá thì chặn ở đây
+            // neu muon chan user thi them status
             return issuePair(user);
         } catch (ParseException e) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -88,7 +88,7 @@ public class AuthenticationService {
         return IntrospectResponse.builder().valid(valid).build();
     }
 
-    // ================= nội bộ =================
+
     private TokenPair issuePair(User user) {
         return new TokenPair(
                 generateToken(user, TokenType.ACCESS),
@@ -112,6 +112,7 @@ public class AuthenticationService {
         JWSObject jws = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload(claims.build().toJSONObject()));
         try {
             jws.sign(new MACSigner(keyOf(type).getBytes()));
+//            chuyen tu jws -> jwt
             return jws.serialize();
         } catch (JOSEException e) {
             log.error("Cannot create token", e);
@@ -127,6 +128,7 @@ public class AuthenticationService {
                 throw new AppException(ErrorCode.UNAUTHENTICATED);
             }
 
+//            so sanh access hay refresh
             JWTClaimsSet c = jwt.getJWTClaimsSet();
             if (!expected.name().equals(c.getStringClaim("type"))) {
                 log.warn("verifyToken[{}]: sai loai token, claim type={}", expected, c.getStringClaim("type"));
