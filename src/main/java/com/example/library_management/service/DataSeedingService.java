@@ -87,7 +87,7 @@ public class DataSeedingService {
                     borrowRead, borrowCreate, borrowReturn, borrowRenew, borrowManage,
                     reservationRead, reservationManage,
                     fineRead, fineCreate, finePay,fineManage,
-                    reportRead
+                    reportRead, reportExport
             )));
             roleRepository.save(librarianRole);
             log.info("Seeded default permissions for LIBRARIAN role.");

@@ -4,6 +4,8 @@ import com.example.library_management.entity.BorrowRecord;
 import com.example.library_management.enums.BorrowStatus;
 import com.example.library_management.enums.FineStatus;
 import jakarta.persistence.LockModeType;
+import com.example.library_management.dto.response.BookBorrowCount;
+import com.example.library_management.dto.response.BorrowTotals;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -108,9 +110,6 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     // Chan muon/dat khi user con sach qua han chua tra
     boolean existsByUserIdAndStatus(String userId, BorrowStatus status);
 
-    // Chan xoa user khi con sach chua tra (BORROWED/OVERDUE)
-    boolean existsByUserIdAndStatusIn(String userId, Collection<BorrowStatus> statuses);
-
     // Khoa record khi tra / bao mat / tu dong danh dau LOST, tranh scheduler va thu thu xu ly cung luc.
     // Thu tu khoa: BorrowRecord -> Book
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -167,4 +166,42 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
             """)
     List<BorrowRecord> findOverdueToNotify(@Param("statuses") Collection<BorrowStatus> statuses,
                                            @Param("today") LocalDate today);
+
+    // ========== BAO CAO SACH MUON NHIEU (Most Borrowed Books) ==========
+    // Moi BorrowRecord chi duoc tao luc thu thu giao sach (handoverBook) nen 1 record = 1 luot muon that.
+    // Reservation chua duoc giao khong co BorrowRecord => tu dong khong bi dem.
+    // Dem moi status (BORROWED, OVERDUE, RETURNED, LOST), loc theo ngay giao sach (borrowDate, gom 2 dau).
+    String BORROW_REPORT_FILTER = """
+            WHERE (:startDate IS NULL OR br.borrowDate >= :startDate)
+              AND (:endDate IS NULL OR br.borrowDate <= :endDate)
+              AND (:categoryId IS NULL OR c.id = :categoryId)
+            """;
+
+    @Query("""
+            SELECT new com.example.library_management.dto.response.BookBorrowCount(
+                b.id, b.title, c.name, COUNT(br))
+            FROM BorrowRecord br
+            JOIN br.book b
+            JOIN b.category c
+            """ + BORROW_REPORT_FILTER + """
+            GROUP BY b.id, b.title, c.name
+            ORDER BY COUNT(br) DESC, b.title ASC, b.id ASC
+            """)
+    List<BookBorrowCount> findMostBorrowedBooks(@Param("startDate") LocalDate startDate,
+                                                @Param("endDate") LocalDate endDate,
+                                                @Param("categoryId") Long categoryId,
+                                                Pageable pageable);
+
+    @Query("""
+            SELECT new com.example.library_management.dto.response.BorrowTotals(
+                COUNT(br), COUNT(DISTINCT b.id))
+            FROM BorrowRecord br
+            JOIN br.book b
+            JOIN b.category c
+            """ + BORROW_REPORT_FILTER)
+    BorrowTotals findBorrowTotals(@Param("startDate") LocalDate startDate,
+                                  @Param("endDate") LocalDate endDate,
+                                  @Param("categoryId") Long categoryId);
+
+    boolean existsByUserIdAndStatusIn(String id, List<BorrowStatus> borrowed);
 }

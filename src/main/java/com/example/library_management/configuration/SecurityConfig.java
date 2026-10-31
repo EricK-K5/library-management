@@ -45,11 +45,13 @@ public class SecurityConfig {
         this.customJwtDecoder = customJwtDecoder;
     }
 
+//    cau hinh qui tac bao mat cho http request
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults()); // dùng CorsConfigurationSource bên dưới
 
         http.authorizeHttpRequests(r -> r
+//                de fe goi be(option)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                 .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
@@ -60,6 +62,7 @@ public class SecurityConfig {
                 .bearerTokenResolver(bearerTokenResolver())
                 .jwt(jwt -> jwt
                         .decoder(customJwtDecoder)
+//                        chuyen tt tu token thanh tt xac thuc cho spring
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
@@ -89,7 +92,10 @@ public class SecurityConfig {
         c.setAllowedOrigins(allowedOrigins);          // phải là origin cụ thể, không được "*"
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        c.setAllowCredentials(true);                  // BẮT BUỘC để trình duyệt gửi/nhận cookie
+//        Khi frontend cần gửi hoặc nhận cookie qua request cross-origin,
+//        CORS cần cho phép credentials. Phía frontend cũng phải chủ động bật credentials
+        c.setAllowCredentials(true);
+//        tao noi dky cors theo tung duong dan api
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
         src.registerCorsConfiguration("/**", c);
         return src;
@@ -97,8 +103,11 @@ public class SecurityConfig {
 
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
+//        kiem tra quyen
         JwtGrantedAuthoritiesConverter g = new JwtGrantedAuthoritiesConverter();
+//        mac dinh co tien to scope. set "" de bo
         g.setAuthorityPrefix("");
+//        kiem tra quyen va danh tinh
         JwtAuthenticationConverter c = new JwtAuthenticationConverter();
         c.setJwtGrantedAuthoritiesConverter(g);
         return c;

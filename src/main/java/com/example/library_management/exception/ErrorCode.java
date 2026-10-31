@@ -72,7 +72,11 @@ public enum ErrorCode {
     FILE_EMPTY("File is empty or missing", 8001, HttpStatus.BAD_REQUEST),
     FILE_TOO_LARGE("File is too large", 8002, HttpStatus.BAD_REQUEST),
     FILE_TYPE_NOT_SUPPORTED("Only JPG, PNG or WEBP images are allowed", 8003, HttpStatus.BAD_REQUEST),
-    FILE_UPLOAD_FAILED("Could not store file", 8004, HttpStatus.INTERNAL_SERVER_ERROR);
+    FILE_UPLOAD_FAILED("Could not store file", 8004, HttpStatus.INTERNAL_SERVER_ERROR),
+
+    INVALID_REPORT_FILTER("Invalid report filter", 9101, HttpStatus.BAD_REQUEST),
+    INVALID_REPORT_DATE_RANGE("Start date must not be after end date", 9102, HttpStatus.BAD_REQUEST),
+    REPORT_EXPORT_FAILED("Could not generate report file", 9103, HttpStatus.INTERNAL_SERVER_ERROR);
 
 
 //    enum chi xay dung ham khoi tao khong tham so nen muon co tham so phai tu tao
