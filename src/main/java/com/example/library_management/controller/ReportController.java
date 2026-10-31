@@ -20,10 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-/**
- * Bao cao cho LIBRARIAN/ADMIN. Xem: report:read, xuat Excel: report:export.
- * Ngay dung dinh dang yyyy-MM-dd (bao gom 2 dau).
- */
 @RestController
 @RequestMapping("/reports")
 @RequiredArgsConstructor
