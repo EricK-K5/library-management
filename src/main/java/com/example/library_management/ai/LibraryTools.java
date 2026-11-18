@@ -24,12 +24,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/**
- * Các "công cụ" mà AI được phép gọi.
- * <p>
- * Lưu ý quan trọng: tool gọi THẲNG vào service nên sẽ bỏ qua @PreAuthorize ở controller.
- * Vì vậy mỗi tool tự kiểm tra authority trong execute(...).
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -40,12 +34,6 @@ public class LibraryTools {
     /** Key trong ToolContext: ChatService truyền vào 1 List để tool gom các pending action của request này. */
     public static final String PENDING_ACTIONS_KEY = "pendingActions";
 
-    /**
-     * WHITELIST: AI chỉ được dùng đúng bộ quyền của role MEMBER (giống DataSeedingService).
-     * Dù người đang chat là ADMIN/LIBRARIAN thì AI vẫn chỉ làm được việc của member.
-     * Nếu sau này lỡ viết tool cần quyền ngoài danh sách này (fine:manage, borrow:return...)
-     * thì execute(...) sẽ chặn và ghi log lỗi.
-     */
     private static final Set<String> AI_ALLOWED_AUTHORITIES = Set.of(
             "book:read",
             "borrow:read", "borrow:renew",
@@ -160,11 +148,6 @@ public class LibraryTools {
     // HELPERS
     // ======================================================================
 
-    /**
-     * Chạy 1 tool: kiểm tra quyền -> gọi service -> bọc kết quả.
-     * Bắt AppException để trả lý do lỗi (vd "User has unpaid fine") về cho model giải thích,
-     * thay vì để exception nổ ra ngoài làm hỏng cả cuộc chat.
-     */
     private <T> ToolResult<T> execute(String requiredAuthority, Supplier<T> action) {
         try {
             // Fail-closed: tool nào quên khai báo quyền thì bị chặn, không âm thầm bỏ qua kiểm tra
@@ -221,8 +204,10 @@ public class LibraryTools {
         if (toolContext == null || toolContext.getContext() == null) {
             return;
         }
+//        o day collector la List<PendingActionResponse> trong Map<LibraryTools.PENDING_ACTIONS_KEY><List<PendingResponse>>
         Object collector = toolContext.getContext().get(PENDING_ACTIONS_KEY);
         if (collector instanceof List<?> raw) {
+//            tao list vi java khong cho add bien co kieu List<?>
             @SuppressWarnings("unchecked")
             List<PendingActionResponse> list = (List<PendingActionResponse>) raw;
             // model gọi tool 2 lần cho cùng 1 sách -> store trả lại cùng action, tránh hiện 2 nút

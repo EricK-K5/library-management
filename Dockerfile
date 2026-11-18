@@ -1,5 +1,5 @@
 
-# Stage 1: Build Spring Boot application
+# Stage 1: Build Spring Boot
 FROM maven:3.9-eclipse-temurin-26 AS build
 
 WORKDIR /app

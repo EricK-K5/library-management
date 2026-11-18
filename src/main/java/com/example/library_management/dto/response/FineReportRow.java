@@ -8,7 +8,6 @@ import lombok.experimental.FieldDefaults;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** 1 dong chi tiet cua Fine Report. Thu tu field phai khop constructor trong query JPQL. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

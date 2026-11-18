@@ -2,6 +2,7 @@ package com.example.library_management.service;
 
 import com.example.library_management.dto.request.FineReportFilter;
 import com.example.library_management.dto.response.*;
+import com.example.library_management.entity.BorrowRecord;
 import com.example.library_management.enums.FineReason;
 import com.example.library_management.enums.FineStatus;
 import com.example.library_management.exception.AppException;
@@ -26,15 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Bao cao cho thu thu/admin: Fine Report va Most Borrowed Books.
- *
- * Fine Report: loc theo Fine.issuedDate (ngay ghi nhan phat), gom 2 dau. Phat "tam tinh" cua sach chua tra
- * (OVERDUE + UNPAID + luot muon dang BORROWED/OVERDUE) bi loai.
- *
- * Most Borrowed Books: 1 BorrowRecord = 1 luot muon (record chi duoc tao luc giao sach), loc theo
- * BorrowRecord.borrowDate, dem ca RETURNED / BORROWED / OVERDUE / LOST.
- */
+
+//Most Borrowed Books: 1 BorrowRecord = 1 luot muon, loc theo
+//BorrowRecord.borrowDate, dem ca RETURNED / BORROWED / OVERDUE / LOST.
+
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
@@ -49,7 +45,7 @@ public class ReportService {
     CategoryRepository categoryRepository;
     ReportExcelService reportExcelService;
 
-    // ================= FINE REPORT =================
+    //FINE REPORT
 
     @Transactional(readOnly = true)
     public FineReportResponse getFineReport(String startDate, String endDate, String status, String fineType,

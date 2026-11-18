@@ -6,6 +6,7 @@ import com.example.library_management.dto.response.PaymentResponse;
 import com.example.library_management.entity.Fine;
 import com.example.library_management.entity.PaymentTransaction;
 import com.example.library_management.entity.User;
+import com.example.library_management.enums.Code;
 import com.example.library_management.enums.FineStatus;
 import com.example.library_management.enums.PaymentStatus;
 import com.example.library_management.exception.AppException;
@@ -46,15 +47,7 @@ public class PaymentService {
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final DateTimeFormatter VNP_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final int EXPIRE_MINUTES = 15;
-    
 
-    public enum Code {
-        PROCESSED,          // xu ly xong (thanh cong hoac that bai, xem txStatus)
-        ALREADY_CONFIRMED,  // giao dich da duoc xu ly truoc do (IPN den truoc Return hoac nguoc lai)
-        NOT_FOUND,          // khong co vnp_TxnRef nay
-        INVALID_AMOUNT,     // vnp_Amount khong khop so tien luc tao giao dich
-        INVALID_SIGNATURE   // sai chu ky
-    }
 
     public record CallbackResult(Code code, String txnRef, Long fineId, PaymentStatus txStatus) {
         public boolean paid() {
@@ -132,6 +125,7 @@ public class PaymentService {
             return new CallbackResult(Code.INVALID_SIGNATURE, txnRef, null, null);
         }
 
+//        kiem tra tx co ton tai trong db hay ko
         PaymentTransaction tx = txnRef == null ? null
                 : paymentTransactionRepository.findByTxnRefForUpdate(txnRef).orElse(null);
         if (tx == null) {
@@ -140,11 +134,13 @@ public class PaymentService {
 
         Long fineId = tx.getFine().getId();
 
+//        kiem tra lai so tien = callback gui ve khong
         if (!isSameAmount(tx, params.get("vnp_Amount"))) {
             log.warn("VNPay callback amount mismatch, txnRef={}", txnRef);
             return new CallbackResult(Code.INVALID_AMOUNT, txnRef, fineId, tx.getStatus());
         }
 
+//        kiem tra tt da tt that hay chua
         if (tx.getStatus() != PaymentStatus.PENDING) {
             return new CallbackResult(Code.ALREADY_CONFIRMED, txnRef, fineId, tx.getStatus());
         }

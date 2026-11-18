@@ -3,6 +3,7 @@ package com.example.library_management.controller;
 import com.example.library_management.configuration.VnpConfig;
 import com.example.library_management.dto.response.ApiResponse;
 import com.example.library_management.dto.response.PaymentResponse;
+import com.example.library_management.enums.Code;
 import com.example.library_management.service.PaymentService;
 import com.example.library_management.service.PaymentService.CallbackResult;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,9 +46,9 @@ public class PaymentController {
         CallbackResult result = paymentService.processCallback(extractVnpParams(request));
 
         String status;
-        if (result.code() == PaymentService.Code.INVALID_SIGNATURE
-                || result.code() == PaymentService.Code.NOT_FOUND
-                || result.code() == PaymentService.Code.INVALID_AMOUNT) {
+        if (result.code() == Code.INVALID_SIGNATURE
+                || result.code() == Code.NOT_FOUND
+                || result.code() == Code.INVALID_AMOUNT) {
             status = "invalid";
         } else {
             status = result.paid() ? "success" : "failed";

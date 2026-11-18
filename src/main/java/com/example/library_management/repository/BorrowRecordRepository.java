@@ -92,6 +92,7 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     // Job dem ngay: BORROWED -> OVERDUE bang 1 cau UPDATE.
     // Neu returnBook/markLost dang giu lock record, UPDATE se cho va doc lai ban moi nhat nen khong ghi de RETURNED/LOST.
+    // dùng cho việc nhiều dữ liệu. lúc nafy nếu update thẳng xuống db thì sẽ đỡ mất time hơn khi phải load qua entity
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE BorrowRecord b SET b.status = :overdue
@@ -131,6 +132,7 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
                          @Param("lostStatus") BorrowStatus lostStatus,
                          @Param("unpaidStatus") FineStatus unpaidStatus);
 
+//    ghi trong day de khi can thi chi can goi countBorrowSlotsInUse
     default long countBorrowSlotsInUse(String userId) {
         return countSlotsInUse(
                 userId,

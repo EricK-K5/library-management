@@ -45,13 +45,10 @@ import java.util.Set;
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class BorrowRecordService {
 
-    // Thời hạn mượn mặc định: 7 ngày.
     private static final int BORROW_DAYS = 7;
 
-    // Hạn mức mặc định: 5 suất sách cho mỗi người dùng.
     private static final int DEFAULT_BORROW_LIMIT = 5;
 
-    // Quá hạn 30 ngày mà chưa trả thì tự động đánh dấu mất sách.
     private static final int AUTO_LOST_AFTER_DAYS = 30;
 
     private static final Set<ReservationStatus> ACTIVE_RESERVATION_STATUSES =
@@ -71,13 +68,12 @@ public class BorrowRecordService {
     ApplicationEventPublisher eventPublisher;
 
     // Chỉ LIBRARIAN/ADMIN có quyền borrow:manage.
-    // Member phải đặt sách thành công trước khi nhân viên xác nhận giao sách.
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public BorrowRecordResponse handoverBook(HandoverRequest request) {
         User staff = getCurrentUser();
         LocalDate today = LocalDate.now();
 
-        // Khóa Reservation để tránh giao sách đồng thời hoặc giao một Reservation đã xử lý.
+        // Khóa Reservation
         Reservation reservation =
                 reservationService.lockReservation(request.getReservationId());
 
@@ -89,7 +85,6 @@ public class BorrowRecordService {
             throw new AppException(ErrorCode.RESERVATION_ALREADY_PROCESSED);
         }
 
-        // Reservation còn hiệu lực đến hết expiryDate.
         if (reservation.getExpiryDate() != null
                 && reservation.getExpiryDate().isBefore(today)) {
             throw new AppException(ErrorCode.RESERVATION_EXPIRED);
@@ -97,12 +92,10 @@ public class BorrowRecordService {
 
         User member = reservation.getUser();
 
-        // Không cho mượn nếu người dùng còn tiền phạt chưa thanh toán.
         if (fineService.hasUnpaidFine(member.getId())) {
             throw new AppException(ErrorCode.USER_HAS_UNPAID_FINE);
         }
 
-        // Kiểm tra quá hạn trực tiếp bằng dueDate, không phụ thuộc Scheduler.
         if (borrowRecordRepository.existsByUserIdAndStatusInAndDueDateBefore(
                 member.getId(),
                 List.of(BorrowStatus.BORROWED, BorrowStatus.OVERDUE),
@@ -154,8 +147,7 @@ public class BorrowRecordService {
         return borrowRecordMapper.toBorrowRecordResponse(saved);
     }
 
-    // ==================== TRẢ SÁCH ====================
-
+//    return book
     @Transactional
     public BorrowRecordResponse returnBook(
             Long borrowRecordId,
@@ -163,7 +155,7 @@ public class BorrowRecordService {
     ) {
         User processedBy = getCurrentUser();
 
-        // Thống nhất thứ tự khóa: BorrowRecord trước, Book sau.
+        // lock borrow -> book
         BorrowRecord borrowRecord = borrowRecordRepository
                 .findByIdForUpdate(borrowRecordId)
                 .orElseThrow(() ->
@@ -204,8 +196,7 @@ public class BorrowRecordService {
         );
     }
 
-    // ==================== ĐÁNH DẤU MẤT SÁCH ====================
-
+//    lost book
     @Transactional
     public BorrowRecordResponse markLost(
             Long borrowRecordId,
@@ -228,10 +219,7 @@ public class BorrowRecordService {
         );
     }
 
-    // ==================== SCHEDULER: CẬP NHẬT TRẠNG THÁI ====================
-
-    // Chuyển BORROWED thành OVERDUE khi đã qua hạn trả.
-    // Phần tính tiền phạt được xử lý riêng trong FineService.
+//    scheduler
     @Transactional
     public int markOverdueRecords() {
         return borrowRecordRepository.markOverdue(
@@ -241,7 +229,7 @@ public class BorrowRecordService {
         );
     }
 
-    // Lấy các lượt mượn OVERDUE đã quá hạn ít nhất 30 ngày.
+//    over30days
     @Transactional(readOnly = true)
     public List<Long> findLongOverdueRecordIds() {
         LocalDate threshold =
@@ -343,9 +331,7 @@ public class BorrowRecordService {
         return borrowRecordRepository.save(borrowRecord);
     }
 
-    // ==================== TRA CỨU BORROW RECORD ====================
-
-    // Danh sách tất cả lượt mượn, có lọc trạng thái và từ khóa.
+//    search
     @Transactional(readOnly = true)
     public Page<BorrowRecordResponse> getAllBorrowRecords(
             BorrowStatus status,
@@ -357,8 +343,8 @@ public class BorrowRecordService {
                 .map(borrowRecordMapper::toBorrowRecordResponse);
     }
 
-    // Danh sách lượt mượn thực tế đã quá hạn.
-    // Không phụ thuộc việc Scheduler đã cập nhật status hay chưa.
+
+//    list borrow
     @Transactional(readOnly = true)
     public Page<BorrowRecordResponse> getOverdueRecords(
             String keyword,
@@ -374,7 +360,8 @@ public class BorrowRecordService {
                 .map(borrowRecordMapper::toBorrowRecordResponse);
     }
 
-    // Chi tiết một lượt mượn.
+
+//    detail borrow
     @Transactional(readOnly = true)
     public BorrowRecordResponse getBorrowRecordById(Long id) {
         BorrowRecord borrowRecord = borrowRecordRepository
@@ -386,7 +373,7 @@ public class BorrowRecordService {
         return borrowRecordMapper.toBorrowRecordResponse(borrowRecord);
     }
 
-    // Danh sách lượt mượn của một người dùng cụ thể.
+//    list detail borrow of current user
     @Transactional(readOnly = true)
     public List<BorrowRecordResponse> getBorrowRecordsByUser(String userId) {
         if (!userRepository.existsById(userId)) {
@@ -399,7 +386,7 @@ public class BorrowRecordService {
                 .toList();
     }
 
-    // Danh sách lượt mượn của chính người dùng đang đăng nhập.
+//    list borrow of current user
     @Transactional(readOnly = true)
     public List<MyBorrowRecordResponse> getMyBorrowRecords() {
         User user = getCurrentUser();
@@ -410,8 +397,7 @@ public class BorrowRecordService {
                 .toList();
     }
 
-    // ==================== HELPER ====================
-
+//    helper method
     private String toLikePattern(String keyword) {
         if (keyword == null) {
             return null;

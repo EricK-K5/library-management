@@ -22,42 +22,44 @@ import java.time.LocalDateTime;
 public class PaymentTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    Long id;
 
+//    ma dinh danh
     @Column(name = "txn_ref", nullable = false, unique = true, length = 64)
-    private String txnRef;
+    String txnRef;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fine_id", nullable = false)
-    private Fine fine;
+    Fine fine;
 
     // So tien VND (khong nhan 100)
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount;
+    BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private PaymentStatus status = PaymentStatus.PENDING;
+    PaymentStatus status = PaymentStatus.PENDING;
 
     // vnp_TransactionNo: ma giao dich ben VNPay
     @Column(name = "vnp_transaction_no", length = 30)
-    private String vnpTransactionNo;
+    String vnpTransactionNo;
 
     @Column(name = "bank_code", length = 30)
-    private String bankCode;
+    String bankCode;
 
+//    ma phan hoi
     @Column(name = "response_code", length = 10)
-    private String responseCode;
+    String responseCode;
 
     @Column(length = 255)
-    private String note;
+    String note;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    LocalDateTime createdAt;
 
 //    tg thanh toan thanh cong
     @Column(name = "paid_at")
-    private LocalDateTime paidAt;
+    LocalDateTime paidAt;
 }

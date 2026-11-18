@@ -251,7 +251,7 @@ public class FineService {
         fine.setPaidDate(LocalDate.now());
         fine.setProcessedBy(staff);
         Fine saved = fineRepository.save(fine);
-        // user vua het no -> xet lai hang doi cac sach ho dang PENDING (truoc do bi bo qua vi con phat)
+        // user vua het no -> xet lai hang doi cac sach ho dang PENDING
         reservationService.promoteQueuesForUser(saved.getUser().getId());
         return fineMapper.toFineResponse(saved);
     }
@@ -270,7 +270,7 @@ public class FineService {
         reservationService.promoteQueuesForUser(fine.getUser().getId());
     }
 
-    // Mien phat (ADMIN): UNPAID -> WAIVED, bat buoc ghi ly do
+    // mien phat (ADMIN)
     @Transactional
     public FineResponse waiveFine(Long id, WaiveFineRequest request) {
         User staff = getCurrentUser();
