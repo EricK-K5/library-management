@@ -64,7 +64,7 @@ public class BorrowRecord {
 
     // Neu luot muon nay den tu 1 reservation da ACCEPTED (mang di lay)
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reservation_id")
+    @JoinColumn(name = "reservation_id", unique = true)
     private Reservation reservation;
 
     // Toi da 1 Fine cho moi FineReason
